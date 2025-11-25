@@ -1,0 +1,47 @@
+{
+  "books": [
+    {
+      "slug": "demian",
+      "title": "데미안",
+      "author": "헤르만 헤세",
+      "rating": 4.7,
+      "createdByUid": "user_1",
+      "createdAt": "2025-01-01T12:00:00Z",
+      "questions": ["‘데미안’에서 진짜 성장의 의미는?", "싱클레어의 가장 큰 전환점은 어디인가?"],
+      "lastMessage": "어제 챕터2까지 읽었어요!",
+      "lastMessageAt": "2025-01-02T15:30:00Z",
+      "membersCount": 2,
+      "members": [
+        {
+          "uid": "user_1",
+          "joinedAt": "2025-01-01T12:00:00Z",
+          "lastReadAt": "2025-01-02T15:30:00Z"
+        },
+        {
+          "uid": "user_2",
+          "joinedAt": "2025-01-01T13:00:00Z",
+          "lastReadAt": "2025-01-02T15:00:00Z"
+        }
+      ]
+    },
+    {
+      "slug": "little-prince",
+      "title": "어린 왕자",
+      "author": "앙투안 드 생텍쥐페리",
+      "rating": 4.9,
+      "createdByUid": "user_2",
+      "createdAt": "2025-01-03T09:00:00Z",
+      "questions": ["여우의 ‘길들인다’는 말의 의미는?", "어린 왕자가 떠난 이유는 뭘까?"],
+      "lastMessage": "장미랑의 관계 너무 슬프지 않나요?",
+      "lastMessageAt": "2025-01-04T11:20:00Z",
+      "membersCount": 1,
+      "members": [
+        {
+          "uid": "user_2",
+          "joinedAt": "2025-01-03T09:00:00Z",
+          "lastReadAt": "2025-01-04T11:20:00Z"
+        }
+      ]
+    }
+  ]
+}

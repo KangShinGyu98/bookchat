@@ -1,0 +1,74 @@
+/* 테마 기본 색 (bg-primary 등에서 사용) */
+:root {
+  --bs-primary: #f9f8f6;
+  --bs-secondary: #efe9e3;
+  --bs-success: #d9cfc7;
+  --bs-info: #c9b59c;
+
+  --bs-primary-rgb: 249, 248, 246;
+  --bs-secondary-rgb: 239, 233, 227;
+  --bs-success-rgb: 217, 207, 199;
+  --bs-info-rgb: 201, 181, 156;
+}
+.temp {
+  border: 2px solid;
+  border-color: darkgray;
+}
+.main-container {
+  width: 100%;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+form .form-select {
+  background-color: bs-body-bg; /* 화살표 크기 축소 */
+}
+
+form .form-select:focus,
+form .form-control:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: #ced4da; /* 기본 테두리색으로 되돌림 */
+}
+.btn:hover {
+  background-color: #c9b59c;
+  border-color: #c9b59c;
+}
+.btn-outline-secondary {
+  border-color: #bfc4c8; /* 테두리 연하게 */
+  border-width: 1px; /* 기본은 1px이지만 확실히 명시 */
+}
+
+.select-no-arrow {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none;
+  padding-right: 1.75rem; /* 아이콘 자리 확보 */
+}
+select {
+  max-width: 100px;
+}
+.select-icon {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.85rem;
+  color: #555;
+  font-weight: bold;
+}
+
+.board-table {
+  font-size: 0.8rem;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+a:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,11 @@
+firebase target:apply hosting prototype bookchat-prototype
+firebase target:apply hosting production book-chat-da2d6
+
+
+firebase deploy --only hosting:prototype  는 prototype/ 폴더를 bookchat-prototype 사이트에 배포합니다.
+firebase deploy --only hosting:production  는 public/ 폴더를 book-chat-da2d6 사이트에 배포합니다.
+
+
+npx firebase hosting:sites:list
+
+firebase emulators:start --only hosting,firestore,auth

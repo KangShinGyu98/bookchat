@@ -1,0 +1,6 @@
+{
+  "hosting": [
+    { "target": "prototype", "public": "prototype", "ignore": ["firebase.json", "**/.*", "**/node_modules/**"] },
+    { "target": "production", "public": "public", "ignore": ["firebase.json", "**/.*", "**/node_modules/**"] }
+  ]
+}
