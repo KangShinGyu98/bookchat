@@ -1,5 +1,6 @@
-import { loginWithGoogle, onUser, logout } from "./app.js";
+import { loginWithGoogle, onUser, logout, db } from "./app.js";
 import { getBooks } from "./data.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 // dom 조작, event 리스너 등록, rendering, format 과 같은 Util 함수들
 
@@ -14,12 +15,50 @@ const googleLoginBtn = document.getElementById("googleLoginBtn");
 const searchForm = document.getElementById("searchForm");
 const orderByButton = document.getElementById("orderByButton");
 const searchFilterButton = document.getElementById("searchFilterButton");
+const nicknameBtn = document.getElementById("nicknameBtn");
+const toastBtn = document.getElementById("toastbtn");
+
+//토스트 테스트 버튼
+toastBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  badToastShow("토스트 테스트입니다.");
+});
+
+const badToastShow = (msg) => {
+  const toastEl = document.getElementById("bad-toast");
+  const toast = new bootstrap.Toast(toastEl);
+  toastEl.querySelector(".toast-body").textContent = msg;
+  toast.show();
+};
 
 let loginModal;
 if (loginModalEl && window.bootstrap) loginModal = new window.bootstrap.Modal(loginModalEl);
 let nicknameModal;
 if (nicknameModalEl && window.bootstrap) nicknameModal = new window.bootstrap.Modal(nicknameModalEl);
 
+nicknameBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  const nicknameInput = document.getElementById("nickname");
+  const nickname = nicknameInput?.value?.trim();
+  const user = window.firebaseUserCache;
+  if (!user) {
+    toastShow("로그인이 필요합니다.");
+    return;
+  }
+  if (!nickname) {
+    toastShow("별명을 입력해주세요.");
+    return;
+  }
+  const profileRef = doc(db, "users", user.uid);
+  setDoc(profileRef, { nickname }, { merge: true })
+    .then(() => {
+      nicknameModal?.hide();
+      toastShow("성공적으로 별명이 설정되었습니다.");
+    })
+    .catch((err) => {
+      alert("별명 설정에 실패했습니다: " + (err.message || err));
+    });
+});
 loginOpenBtn?.addEventListener("click", async () => {
   const user = window.firebaseUserCache;
   if (user) {
@@ -34,14 +73,16 @@ orderByButton?.addEventListener("click", () => {
   const p = new URLSearchParams(location.search);
   p.set("orderBy", orderBy);
   p.set("pageIndex", "1"); // 정렬 변경 시 1페이지로 이동
-  location.href = location.pathname + "?" + p.toString();
+  searchForm.action = p.toString() ? `?${p.toString()}` : "";
+  searchForm.submit();
 });
 
 //검색
 searchFilterButton?.addEventListener("click", () => {
   const p = new URLSearchParams(location.search);
   p.set("pageIndex", "1"); // 검색 시 1페이지로 이동
-  location.href = location.pathname + "?" + p.toString();
+  searchForm.action = p.toString() ? `?${p.toString()}` : "";
+  searchForm.submit();
 });
 
 googleLoginBtn?.addEventListener("click", async () => {
@@ -56,7 +97,7 @@ googleLoginBtn?.addEventListener("click", async () => {
   }
 });
 
-function showNicknameModal() {
+export function showNicknameModal() {
   if (nicknameModal) nicknameModal.show();
 }
 
@@ -191,9 +232,26 @@ onUser((user) => {
     loginOpenBtn.innerHTML = user ? `<i class="bi bi-box-arrow-right"></i> 로그아웃` : `<i class="bi bi-box-arrow-in-right"></i> 로그인`;
   }
 });
+
 const toastShow = (msg) => {
-  const toastEl = document.querySelector(".toast");
+  const toastEl = document.getElementById("toast");
   const toast = new bootstrap.Toast(toastEl);
   toastEl.querySelector(".toast-body").textContent = msg;
   toast.show();
 };
+
+onUser(async (user) => {
+  if (!user) return;
+  try {
+    const profileRef = doc(db, "users", user.uid);
+    const snap = await getDoc(profileRef);
+    if (!snap.exists() || !snap.data().nickname) {
+      showNicknameModal();
+    }
+    // else {
+    //   console.log("내 서비스 유저 정보:", snap.data());
+    // }
+  } catch (err) {
+    console.error("프로필 로드 실패:", err);
+  }
+});

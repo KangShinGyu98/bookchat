@@ -6,6 +6,7 @@
   --bs-info: #c9b59c;
   --bs-gray: #bfc4c8;
   --bs-secondary-gray: #555;
+  --bs-danger: #a89a91;
   /* var(--bs-border-color) */
 }
 .bg-primary {
@@ -19,6 +20,12 @@
 }
 .bg-info {
   background-color: var(--bs-info) !important;
+}
+.bg-secondary-gray {
+  background-color: var(--bs-secondary-gray) !important;
+}
+.bg-gray {
+  background-color: var(--bs-gray) !important;
 }
 
 .temp {

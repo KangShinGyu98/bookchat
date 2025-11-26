@@ -1,5 +1,5 @@
 // firebase 초기화 및 인증 관련 함수들
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -9,7 +9,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   doc,
   getDoc,
@@ -22,7 +22,7 @@ import {
   setDoc,
   deleteDoc,
   getFirestore,
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyA9bkq2Zgs2yWfCBfgCl1GdSDehMY3ZGRs",
@@ -36,7 +36,7 @@ export const firebaseConfig = {
 //인증정보
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getFirestore(app, "bookchat-database");
 const googleProvider = new GoogleAuthProvider();
 
 //래핑 함수
@@ -68,19 +68,3 @@ export async function loginWithGoogle() {
     });
   }
 }
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
-  try {
-    const profileRef = doc(db, "users", user.uid);
-    const snap = await getDoc(profileRef);
-    if (!snap.exists()) {
-      showNicknameModal();
-    }
-    // else {
-    //   console.log("내 서비스 유저 정보:", snap.data());
-    // }
-  } catch (err) {
-    console.error("프로필 로드 실패:", err);
-  }
-});

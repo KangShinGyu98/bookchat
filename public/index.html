@@ -81,6 +81,7 @@
             </div>
           </div>
           <div class="d-flex gap-2 align-items-center">
+            <!-- <button class="btn btn-sm" id="toastbtn" type="button">토스트</button> -->
             <button class="btn btn-sm btn-outline-secondary" id="newPostBtn">+ 새 글 작성</button>
             <label class="text-muted">페이지당</label>
             <select class="form-select form-select-sm" style="width: 90px" name="pageSize" id="pageSizeSelect">
@@ -161,19 +162,28 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <form id="loginForm" class="d-flex flex-column gap-3">
+            <form id="nicknameForm" class="d-flex flex-column gap-3">
               <div>
                 <label class="form-label">별명</label>
                 <input type="text" class="form-control" id="nickname" placeholder="심술두꺼비" required />
               </div>
-              <button type="button" class="btn btn-dark w-100">설정</button>
+              <button name="nicknameBtn" id="nicknameBtn" type="submit" class="btn btn-dark w-100">설정</button>
             </form>
           </div>
         </div>
       </div>
     </div>
     <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1100">
-      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" data-bs-autohide="true">
+      <div id="bad-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" data-bs-autohide="true">
+        <div class="toast-header bg-secondary-gray">
+          <strong class="me-auto">알림</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body bg-gray">로그아웃에 실패하였습니다..</div>
+      </div>
+    </div>
+    <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1100">
+      <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" data-bs-autohide="true">
         <div class="toast-header bg-info">
           <strong class="me-auto">알림</strong>
           <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>

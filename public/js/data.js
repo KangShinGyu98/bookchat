@@ -54,6 +54,7 @@ async function getLocalPage(offsetIndex, pageSize, field, direction = "desc") {
  * @returns {Promise<AlgoliaSearchResponse>}
  *  - { hits, page, hitsPerPage, nbPages, nbHits, ... }
  */
+
 const ALGOLIA_APP_ID = "FEFKVKE9CI";
 const ALGOLIA_SEARCH_KEY = "f5a80954d9aadcbf3b034a85d791129e";
 
@@ -88,15 +89,15 @@ async function getFirebasePage(searchCondition) {
     page: algoliaPage,
     hitsPerPage,
   };
-  if (searchFilter === "title") {
+  if (searchCondition.searchFilter === "title") {
     params.restrictSearchableAttributes = ["title"];
-  } else if (searchFilter === "author") {
+  } else if (searchCondition.searchFilter === "author") {
     params.restrictSearchableAttributes = ["author"];
-  } else if (searchFilter === "writer") {
+  } else if (searchCondition.searchFilter === "writer") {
     params.restrictSearchableAttributes = ["createdByName"];
   }
   // 실제 검색
-  const res = await index.search(params);
+  const res = await index.search(searchCondition.searchInput || "", params);
 
   // res 구조 (중요한 것들):
   //  - res.hits      : 현재 페이지의 책 데이터 배열
