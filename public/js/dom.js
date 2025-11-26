@@ -16,13 +16,13 @@ const searchForm = document.getElementById("searchForm");
 const orderByButton = document.getElementById("orderByButton");
 const searchFilterButton = document.getElementById("searchFilterButton");
 const nicknameBtn = document.getElementById("nicknameBtn");
-const toastBtn = document.getElementById("toastbtn");
+// const toastBtn = document.getElementById("toastbtn");
 
-//토스트 테스트 버튼
-toastBtn?.addEventListener("click", (e) => {
-  e.preventDefault();
-  badToastShow("토스트 테스트입니다.");
-});
+// //토스트 테스트 버튼
+// toastBtn?.addEventListener("click", (e) => {
+//   e.preventDefault();
+//   badToastShow("토스트 테스트입니다.");
+// });
 
 const badToastShow = (msg) => {
   const toastEl = document.getElementById("bad-toast");
