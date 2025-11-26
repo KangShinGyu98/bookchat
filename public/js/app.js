@@ -10,7 +10,19 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import {
+  doc,
+  getDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  onSnapshot,
+  setDoc,
+  deleteDoc,
+  getFirestore,
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyA9bkq2Zgs2yWfCBfgCl1GdSDehMY3ZGRs",
@@ -30,6 +42,9 @@ const googleProvider = new GoogleAuthProvider();
 //래핑 함수
 export function onUser(cb) {
   return onAuthStateChanged(auth, cb);
+}
+export async function logout() {
+  return signOut(auth);
 }
 
 //사용함수들
@@ -56,18 +71,16 @@ export async function loginWithGoogle() {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
-  // showLoginUI();
-
-  // user = 구글 로그인 정보 (Auth)
-
-  // Firestore에 있는 나의 서비스 회원 정보 로드
-  const profileRef = doc(db, "users", user.uid);
-  const profileSnap = await getDoc(profileRef);
-  if (!profileSnap.exists()) {
-    // 서비스 최초 회원가입
-    showNicknameModal();
-  } else {
-    const profile = profileSnap.data();
-    console.log("내 서비스 유저 정보:", profile);
+  try {
+    const profileRef = doc(db, "users", user.uid);
+    const snap = await getDoc(profileRef);
+    if (!snap.exists()) {
+      showNicknameModal();
+    }
+    // else {
+    //   console.log("내 서비스 유저 정보:", snap.data());
+    // }
+  } catch (err) {
+    console.error("프로필 로드 실패:", err);
   }
 });

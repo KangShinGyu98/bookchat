@@ -2,97 +2,121 @@
 const USE_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
 const LOCAL_JSON_PATH = "./assets/data/books.json";
 let localCache = null; // 로컬 JSON 캐시
+import algoliasearch from "https://cdn.jsdelivr.net/npm/algoliasearch@4.24.0/dist/algoliasearch-lite.esm.browser.js";
 
 /**
  * pageIndex/pageSize/orderBy/orderDirection 기준으로 필요한 범위만 받아온다.
  * orderBy: recent|rank|memberCount|old|lowRank|lessMemberCount
  */
-export async function getBooks(pageIndex = 1, pageSize = 15, orderBy = "recent", orderDirection = "desc") {
-  const [field, direction] = normalizeOrder(orderBy, orderDirection);
-  const offsetIndex = Math.max(pageIndex - 1, 0) * pageSize;
-
+export async function getBooks(searchCondition) {
+  const field = normalizeOrder(searchCondition.orderBy);
+  const offsetIndex = Math.max(searchCondition.pageIndex - 1, 0) * searchCondition.pageSize;
   if (USE_LOCAL) {
-    return getLocalPage(offsetIndex, pageSize, field, direction);
+    return getLocalPage(offsetIndex, searchCondition.pageSize, field);
   }
-  return getFirebasePage(offsetIndex, pageSize, field, direction);
+  return getFirebasePage(searchCondition);
 }
 
-function normalizeOrder(orderBy, orderDirection) {
-  const defaults = {
-    recent: "desc",
-    rank: "desc",
-    memberCount: "desc",
-    old: "asc",
-    lowRank: "asc",
-    lessMemberCount: "asc",
-  };
+function normalizeOrder(orderBy) {
   const map = {
     recent: "createdAt",
-    old: "createdAt",
     rank: "rating",
-    lowRank: "rating",
     memberCount: "membersCount",
-    lessMemberCount: "membersCount",
+    lastMessagedAt: "lastMessagedAt",
   };
   const field = map[orderBy] || "createdAt";
-  const dir = orderDirection || defaults[orderBy] || "desc";
-  return [field, dir];
+  return field;
 }
 
-async function getLocalPage(offsetIndex, pageSize, field, direction) {
+async function getLocalPage(offsetIndex, pageSize, field, direction = "desc") {
   if (!localCache) {
     localCache = await loadFromLocalJson();
   }
   const sorted = sortBooks(localCache, field, direction);
-  return sorted.slice(offsetIndex, offsetIndex + pageSize);
+  const start = Math.max(0, offsetIndex);
+  const hits = sorted.slice(start, start + pageSize);
+  return {
+    hits,
+    nbHits: sorted.length,
+    nbPages: Math.max(1, Math.ceil(sorted.length / pageSize)),
+    page: Math.floor(start / pageSize),
+  };
 }
 
-async function getFirebasePage(offsetIndex, pageSize, field, direction) {
-  if (typeof db === "undefined" || typeof collection !== "function") {
-    console.warn("Firebase가 설정되지 않았습니다. 빈 배열 반환.");
-    return [];
-  }
+/**
+ * Firestore + Algolia 에서 책 목록 가져오기
+ * @param {Object} searchCondition
+ *  - pageIndex: 1-based
+ *  - pageSize
+ *  - orderBy: 'recent' | 'rank' | 'memberCount' | 'old' | 'lowRank' | 'lessMemberCount'
+ *  - searchFilter: 'all' | 'title' | 'author' | 'writer'
+ *  - searchInput: string
+ * @returns {Promise<AlgoliaSearchResponse>}
+ *  - { hits, page, hitsPerPage, nbPages, nbHits, ... }
+ */
+const ALGOLIA_APP_ID = "FEFKVKE9CI";
+const ALGOLIA_SEARCH_KEY = "f5a80954d9aadcbf3b034a85d791129e";
 
-  const constraints = [orderBy(field, direction)];
-  if (typeof offset === "function" && offsetIndex > 0) {
-    constraints.push(offset(offsetIndex));
+// 기본 인덱스 이름 (익스텐션에서 설정한 이름)
+const BASE_INDEX_NAME = "bookchat-algolia-index";
+function getIndexName(orderBy) {
+  switch (orderBy) {
+    case "recent": // 최신순 (createdAt 내림차순)
+      return `${BASE_INDEX_NAME}`;
+    case "rank": // 평점 높은순
+      return `${BASE_INDEX_NAME}_rating`;
+    case "memberCount": // 멤버 많은순
+      return `${BASE_INDEX_NAME}_membersCount`;
+    case "lastMessagedAt": // 최근 대화순
+      return `${BASE_INDEX_NAME}_lastMessagedAt`;
+    default:
+      return `${BASE_INDEX_NAME}`;
   }
-  constraints.push(limit(pageSize));
+}
 
-  try {
-    const q = query(collection(db, "books"), ...constraints);
-    const snap = await getDocs(q);
+async function getFirebasePage(searchCondition) {
+  const algoliaClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+  // Algolia는 0-based page 사용
+  const algoliaPage = Math.max(0, Number(searchCondition.pageIndex) - 1);
+  const hitsPerPage = Number(searchCondition.pageSize) || 15;
 
-    return snap.docs.map((doc) => {
-      const d = doc.data() || {};
-      return {
-        slug: doc.id,
-        title: d.title || "",
-        author: d.author || "",
-        rating: typeof d.rating === "number" ? d.rating : null,
-        createdByUid: d.createdByUid || d.writer || "",
-        createdAt: d.createdAt?.toDate ? d.createdAt.toDate() : d.createdAt ? new Date(d.createdAt) : null,
-        membersCount: typeof d.membersCount === "number" ? d.membersCount : Array.isArray(d.members) ? d.members.length : 0,
-      };
-    });
-  } catch (err) {
-    console.error("Firebase 페이지 로드 실패, 전체 로드로 대체:", err);
-    const all = await loadFromFirebaseAll(field, direction);
-    return all.slice(offsetIndex, offsetIndex + pageSize);
+  const indexName = getIndexName(searchCondition.orderBy);
+  const index = algoliaClient.initIndex(indexName);
+
+  const params = {
+    query: searchCondition.searchInput.trim(),
+    page: algoliaPage,
+    hitsPerPage,
+  };
+  if (searchFilter === "title") {
+    params.restrictSearchableAttributes = ["title"];
+  } else if (searchFilter === "author") {
+    params.restrictSearchableAttributes = ["author"];
+  } else if (searchFilter === "writer") {
+    params.restrictSearchableAttributes = ["createdByName"];
   }
+  // 실제 검색
+  const res = await index.search(params);
+
+  // res 구조 (중요한 것들):
+  //  - res.hits      : 현재 페이지의 책 데이터 배열
+  //  - res.page      : 0-based 현재 페이지
+  //  - res.nbPages   : 전체 페이지 수
+  //  - res.nbHits    : 전체 결과 개수
+  //  - res.hitsPerPage: 페이지당 개수
+
+  return res;
 }
 
 async function loadFromLocalJson() {
   try {
     const res = await fetch(LOCAL_JSON_PATH);
     if (!res.ok) {
-      console.error("local books.json 로드 실패:", res.status, res.statusText);
       return [];
     }
     const json = await res.json();
     return (json.books || []).map(normalizeBook);
   } catch (err) {
-    console.error("local books.json 파싱 오류:", err);
     return [];
   }
 }
@@ -154,11 +178,8 @@ function normalizeBook(raw) {
     createdByUid: raw.createdByUid || raw.writer || "",
     createdAt: toDate(raw.createdAt),
     lastMessage: raw.lastMessage || null,
-    lastMessageAt: toDate(raw.lastMessageAt),
+    lastMessagedAt: toDate(raw.lastMessagedAt),
     questions: Array.isArray(raw.questions) ? raw.questions : [],
     membersCount,
   };
 }
-
-// 전역 노출
-window.getBooks = getBooks;

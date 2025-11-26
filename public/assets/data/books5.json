@@ -1,0 +1,129 @@
+{
+  "books": [
+    {
+      "slug": "데미안-1",
+      "title": "데미안",
+      "author": "헤르만 헤세",
+      "rating": 4,
+      "createdByUid": "user_1",
+      "createdAt": "2024-12-31T15:00:00.000Z",
+      "questions": ["데미안에서 가장 인상 깊은 장면은?", "헤르만 헤세의 메시지는 무엇일까?"],
+      "lastMessage": "새로운 토론이 시작됐습니다.",
+      "lastMessageAt": "2025-01-01T15:00:00.000Z",
+      "membersCount": 1,
+      "members": [
+        {
+          "uid": "user_1",
+          "joinedAt": "2024-12-31T15:00:00.000Z",
+          "lastReadAt": "2025-01-01T15:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "slug": "어린-왕자-2",
+      "title": "어린 왕자",
+      "author": "앙투안 드 생텍쥐페리",
+      "rating": 4.1,
+      "createdByUid": "user_2",
+      "createdAt": "2025-01-01T15:00:00.000Z",
+      "questions": ["어린 왕자에서 가장 인상 깊은 장면은?", "앙투안 드 생텍쥐페리의 메시지는 무엇일까?"],
+      "lastMessage": "새로운 토론이 시작됐습니다.",
+      "lastMessageAt": "2025-01-02T15:00:00.000Z",
+      "membersCount": 2,
+      "members": [
+        {
+          "uid": "user_1",
+          "joinedAt": "2025-01-01T15:00:00.000Z",
+          "lastReadAt": "2025-01-02T15:00:00.000Z"
+        },
+        {
+          "uid": "user_2",
+          "joinedAt": "2025-01-01T15:00:00.000Z",
+          "lastReadAt": "2025-01-02T15:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "slug": "죄와-벌-3",
+      "title": "죄와 벌",
+      "author": "도스토옙스키",
+      "rating": 4.2,
+      "createdByUid": "user_3",
+      "createdAt": "2025-01-02T15:00:00.000Z",
+      "questions": ["죄와 벌에서 가장 인상 깊은 장면은?", "도스토옙스키의 메시지는 무엇일까?"],
+      "lastMessage": "새로운 토론이 시작됐습니다.",
+      "lastMessageAt": "2025-01-03T15:00:00.000Z",
+      "membersCount": 3,
+      "members": [
+        {
+          "uid": "user_1",
+          "joinedAt": "2025-01-02T15:00:00.000Z",
+          "lastReadAt": "2025-01-03T15:00:00.000Z"
+        },
+        {
+          "uid": "user_2",
+          "joinedAt": "2025-01-02T15:00:00.000Z",
+          "lastReadAt": "2025-01-03T15:00:00.000Z"
+        },
+        {
+          "uid": "user_3",
+          "joinedAt": "2025-01-02T15:00:00.000Z",
+          "lastReadAt": "2025-01-03T15:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "slug": "1984-4",
+      "title": "1984",
+      "author": "조지 오웰",
+      "rating": 4.3,
+      "createdByUid": "user_4",
+      "createdAt": "2025-01-03T15:00:00.000Z",
+      "questions": ["1984에서 가장 인상 깊은 장면은?", "조지 오웰의 메시지는 무엇일까?"],
+      "lastMessage": "새로운 토론이 시작됐습니다.",
+      "lastMessageAt": "2025-01-04T15:00:00.000Z",
+      "membersCount": 4,
+      "members": [
+        {
+          "uid": "user_1",
+          "joinedAt": "2025-01-03T15:00:00.000Z",
+          "lastReadAt": "2025-01-04T15:00:00.000Z"
+        },
+        {
+          "uid": "user_2",
+          "joinedAt": "2025-01-03T15:00:00.000Z",
+          "lastReadAt": "2025-01-04T15:00:00.000Z"
+        },
+        {
+          "uid": "user_3",
+          "joinedAt": "2025-01-03T15:00:00.000Z",
+          "lastReadAt": "2025-01-04T15:00:00.000Z"
+        },
+        {
+          "uid": "user_4",
+          "joinedAt": "2025-01-03T15:00:00.000Z",
+          "lastReadAt": "2025-01-04T15:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "slug": "동물농장-5",
+      "title": "동물농장",
+      "author": "레프 톨스토이",
+      "rating": 4.4,
+      "createdByUid": "user_5",
+      "createdAt": "2025-01-04T15:00:00.000Z",
+      "questions": ["동물농장에서 가장 인상 깊은 장면은?", "레프 톨스토이의 메시지는 무엇일까?"],
+      "lastMessage": "새로운 토론이 시작됐습니다.",
+      "lastMessageAt": "2025-01-05T15:00:00.000Z",
+      "membersCount": 1,
+      "members": [
+        {
+          "uid": "user_1",
+          "joinedAt": "2025-01-04T15:00:00.000Z",
+          "lastReadAt": "2025-01-05T15:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}
