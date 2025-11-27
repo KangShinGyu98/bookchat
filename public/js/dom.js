@@ -16,6 +16,9 @@ const searchForm = document.getElementById("searchForm");
 const orderByButton = document.getElementById("orderByButton");
 const searchFilterButton = document.getElementById("searchFilterButton");
 const nicknameBtn = document.getElementById("nicknameBtn");
+const newPostOpenBtn = document.getElementById("newPostOpenBtn");
+const newPostModalEl = document.getElementById("newPostModal");
+
 // const toastBtn = document.getElementById("toastbtn");
 
 // //토스트 테스트 버튼
@@ -35,6 +38,18 @@ let loginModal;
 if (loginModalEl && window.bootstrap) loginModal = new window.bootstrap.Modal(loginModalEl);
 let nicknameModal;
 if (nicknameModalEl && window.bootstrap) nicknameModal = new window.bootstrap.Modal(nicknameModalEl);
+let newPostModal;
+if (newPostModalEl && window.bootstrap) newPostModal = new window.bootstrap.Modal(newPostModalEl);
+
+newPostOpenBtn?.addEventListener("click", () => {
+  const user = window.firebaseUserCache;
+  if (user) {
+    newPostModal?.show();
+  } else {
+    toastShow("로그인이 필요합니다.");
+    loginModal?.show();
+  }
+});
 
 nicknameBtn?.addEventListener("click", (e) => {
   e.preventDefault();

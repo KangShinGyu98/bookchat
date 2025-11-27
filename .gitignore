@@ -2,3 +2,5 @@ book-chat-da2d6-firebase-adminsdk-fbsvc-*.json
 serviceAccount*.json
 *.pem
 *.p12
+.runtimeconfig.json
+.vscode/

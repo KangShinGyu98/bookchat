@@ -82,7 +82,7 @@
           </div>
           <div class="d-flex gap-2 align-items-center">
             <!-- <button class="btn btn-sm" id="toastbtn" type="button">토스트</button> -->
-            <button class="btn btn-sm btn-outline-secondary" id="newPostBtn">+ 새 글 작성</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="newPostOpenBtn">+ 새 글 작성</button>
             <label class="text-muted">페이지당</label>
             <select class="form-select form-select-sm" style="width: 90px" name="pageSize" id="pageSizeSelect">
               <option value="15">15</option>
@@ -122,6 +122,41 @@
         </section>
       </main>
     </form>
+    <!-- 새 글 작성 모달 -->
+    <div class="modal fade" id="newPostModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">새 글 작성</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="newPostForm" class="d-flex flex-column gap-3">
+              <div class="d-grid gap-2 mt-3">
+                <button type="button" class="btn btn-outline-dark" id="naverBooksBtn">네이버 Books 검색</button>
+              </div>
+              <div>
+                <label class="form-label">책 제목</label>
+                <input type="text" class="form-control" id="newTitle" required />
+              </div>
+              <div>
+                <label class="form-label">작가</label>
+                <input type="text" class="form-control" id="newAuthor" required />
+              </div>
+              <div>
+                <label class="form-label">질문 (1개)</label>
+                <input type="text" class="form-control" id="newQuestion" placeholder="토론을 시작할 질문을 적어주세요" required />
+              </div>
+              <div>
+                <label class="form-label">이미지 (jpg/jpeg/png만)</label>
+                <input type="file" class="form-control" id="newImage" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+              </div>
+              <button type="submit" class="btn btn-dark w-100">등록</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 로그인 모달 -->
     <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
