@@ -1,5 +1,5 @@
 import { loginWithGoogle, onUser, logout, db } from "./app.js";
-import { getBooks } from "./data.js";
+import { getBooks, searchNaverBooks } from "./data.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 // dom 조작, event 리스너 등록, rendering, format 과 같은 Util 함수들
@@ -18,6 +18,33 @@ const searchFilterButton = document.getElementById("searchFilterButton");
 const nicknameBtn = document.getElementById("nicknameBtn");
 const newPostOpenBtn = document.getElementById("newPostOpenBtn");
 const newPostModalEl = document.getElementById("newPostModal");
+const naverSearchModalEl = document.getElementById("naverSearchModal");
+const openNaverSearchBtn = document.getElementById("openNaverSearchBtn");
+const naverQueryInput = document.getElementById("naverQueryInput");
+const naverBtn = document.getElementById("naverSearchBtn");
+const naverResultList = document.getElementById("naverResultList");
+const titleInput = document.getElementById("newTitle");
+const authorInput = document.getElementById("newAuthor");
+const imgInput = document.getElementById("newImageUrl");
+const imgPreview = document.getElementById("newImagePreview");
+const newPostForm = document.getElementById("newPostForm");
+const enrollBookBtn = document.getElementById("enrollBookBtn");
+const cancelBookBtn = document.getElementById("cancelBookBtn");
+const ratingInput = document.getElementById("newRating");
+const questionInput = document.getElementById("newQuestion");
+const ratingValueDisplay = document.getElementById("ratingValueDisplay");
+
+const syncRating = () => {
+  if (!ratingInput || !ratingValueDisplay) return;
+  ratingValueDisplay.textContent = ratingInput.value;
+  // console.log("Rating set to:", ratingInput.value);
+};
+
+ratingInput?.addEventListener("input", syncRating); // 드래그 중
+ratingInput?.addEventListener("change", syncRating); // 드래그 완료
+syncRating(); // 초기값 표시
+
+// 토스트 테스트 버튼
 
 // const toastBtn = document.getElementById("toastbtn");
 
@@ -27,19 +54,154 @@ const newPostModalEl = document.getElementById("newPostModal");
 //   badToastShow("토스트 테스트입니다.");
 // });
 
-const badToastShow = (msg) => {
-  const toastEl = document.getElementById("bad-toast");
-  const toast = new bootstrap.Toast(toastEl);
-  toastEl.querySelector(".toast-body").textContent = msg;
-  toast.show();
-};
-
 let loginModal;
 if (loginModalEl && window.bootstrap) loginModal = new window.bootstrap.Modal(loginModalEl);
 let nicknameModal;
 if (nicknameModalEl && window.bootstrap) nicknameModal = new window.bootstrap.Modal(nicknameModalEl);
 let newPostModal;
 if (newPostModalEl && window.bootstrap) newPostModal = new window.bootstrap.Modal(newPostModalEl);
+// 모달 인스턴스
+let naverSearchModal;
+if (naverSearchModalEl && window.bootstrap) naverSearchModal = new bootstrap.Modal(naverSearchModalEl);
+
+//등록 버튼
+newPostForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const user = window.firebaseUserCache;
+  if (!user) return toastShow("로그인이 필요합니다.");
+  // 프로필에서 닉네임 다시 읽기
+  const profileRef = doc(db, "users", user.uid);
+  const profileSnap = await getDoc(profileRef);
+  const profile = profileSnap.exists() ? profileSnap.data() : {};
+  const nickname = profile.nickname || "익명";
+  if (!profile.nickname) return toastShow("별명 설정이 필요합니다.");
+
+  const payload = {
+    title: titleInput?.value?.trim(),
+    author: authorInput?.value?.trim(),
+    rating: Number(ratingInput?.value || 0),
+    imageUrl: imgInput?.value || "",
+    question: questionInput?.value?.trim(),
+    createdByName: nickname,
+  };
+  if (!payload.title || !payload.author) return toastShow("제목/저자를 입력하세요.");
+
+  const token = await user.getIdToken();
+  const res = await fetch("/createBook", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) return toastShow("등록에 실패했습니다.");
+  toastShow("등록 완료!");
+  newPostForm.reset();
+  newPostModal?.hide();
+  // 미리보기 초기화가 필요하면 여기서 추가
+});
+
+cancelBookBtn?.addEventListener("click", () => {
+  newPostForm?.reset(); // 입력 초기화
+  const imgPreview = document.getElementById("newImagePreview");
+  if (imgPreview) imgPreview.classList.add("d-none"); // 미리보기 숨기기
+  newPostModal?.hide(); // 모달 닫기 (이미 만들어둔 newPostModal 인스턴스 사용)
+  syncRating();
+});
+
+const stripTags = (str = "") => str.replace(/<[^>]+>/g, "");
+// 공용 검색 함수
+const runNaverSearch = async (keyword) => {
+  if (!keyword) return toastShow("검색어를 입력해주세요.");
+  naverBtn.disabled = true;
+  naverBtn.textContent = "검색 중...";
+  naverResultList.innerHTML = `<div class="col-12 text-muted small">불러오는 중...</div>`;
+
+  try {
+    const data = await searchNaverBooks(keyword);
+    console.log("네이버 검색 결과:", data);
+    renderNaverCards(data.items || []);
+  } catch (err) {
+    console.error(err);
+    toastShow("네이버 검색에 실패했습니다.");
+  } finally {
+    naverBtn.disabled = false;
+    naverBtn.textContent = "검색";
+  }
+};
+
+// 카드 렌더 (이미지 포함)
+const renderNaverCards = (items) => {
+  naverResultList.innerHTML = "";
+  if (!items.length) {
+    naverResultList.innerHTML = `<div class="col-12 text-muted small">검색 결과가 없습니다.</div>`;
+    return;
+  }
+  items.forEach((item) => {
+    const title = stripTags(item.title);
+    const author = stripTags(item.author);
+    const img = item.image || "";
+    const card = document.createElement("div");
+    card.className = "col-12 col-md-6 col-lg-4";
+    card.innerHTML = `
+      <div class="card h-100 hover-shadow" style="cursor:pointer;">
+        ${img ? `<img src="${img}" class="card-img-top" alt="${title}" style="object-fit:cover;height:200px;">` : ""}
+        <div class="card-body">
+          <h6 class="card-title text-truncate">${title || "-"}</h6>
+          <p class="card-text text-muted text-truncate mb-1">${author || "-"}</p>
+          <small class="text-muted">${item.publisher || ""}</small>
+        </div>
+      </div>`;
+    card.onclick = () => {
+      if (titleInput) titleInput.value = title;
+      if (authorInput) authorInput.value = author;
+      if (imgInput) imgInput.value = item.image || "";
+      if (imgPreview) {
+        imgPreview.src = item.image || "";
+        imgPreview.classList.toggle("d-none", !item.image);
+      }
+      toastShow("입력이 성공적으로 완료되었습니다.");
+      naverSearchModal?.hide();
+    };
+    naverResultList.appendChild(card);
+  });
+};
+
+// “네이버 검색” 버튼 (새 글 모달 안)
+openNaverSearchBtn?.addEventListener("click", () => {
+  const seed = titleInput?.value?.trim() || "";
+  if (naverQueryInput) naverQueryInput.value = seed;
+  naverSearchModal?.show();
+  if (!seed) {
+    naverQueryInput?.focus();
+    return;
+  }
+  runNaverSearch(seed);
+});
+
+// 검색 모달 안 “검색” 버튼
+naverBtn?.addEventListener("click", () => {
+  const q = naverQueryInput?.value?.trim();
+  naverSearchModal?.show(); // 혹시 모달이 닫혀있으면 열기
+  runNaverSearch(q);
+});
+
+// 엔터키로 검색
+naverQueryInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    naverBtn?.click();
+  }
+});
+
+const badToastShow = (msg) => {
+  const toastEl = document.getElementById("bad-toast");
+  const toast = new bootstrap.Toast(toastEl);
+  toastEl.querySelector(".toast-body").textContent = msg;
+  toast.show();
+};
 
 newPostOpenBtn?.addEventListener("click", () => {
   const user = window.firebaseUserCache;

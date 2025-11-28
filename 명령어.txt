@@ -4,8 +4,11 @@ firebase target:apply hosting production book-chat-da2d6
 
 firebase deploy --only hosting:prototype  는 prototype/ 폴더를 bookchat-prototype 사이트에 배포합니다.
 firebase deploy --only hosting:production  는 public/ 폴더를 book-chat-da2d6 사이트에 배포합니다.
+firebase deploy --only functions
 
 
 npx firebase hosting:sites:list
 
-firebase emulators:start --only hosting,firestore,auth
+firebase emulators:start --only hosting,firestore,auth,functions
+
+firebase functions:config:set naver.client_id="YOUR_ID" naver.client_secret="YOUR_SECRET"

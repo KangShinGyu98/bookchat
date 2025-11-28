@@ -1,6 +1,39 @@
 {
   "hosting": [
-    { "target": "prototype", "public": "prototype", "ignore": ["firebase.json", "**/.*", "**/node_modules/**"] },
-    { "target": "production", "public": "public", "ignore": ["firebase.json", "**/.*", "**/node_modules/**"] }
+    {
+      "target": "prototype",
+      "public": "prototype",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    },
+    {
+      "target": "production",
+      "public": "public",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/searchBooks", "function": "searchBooks" },
+        { "source": "/createBook", "function": "createBook" }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "codebase": "default",
+      "params": {
+        "NAVER_CLIENT_ID": {
+          "type": "string",
+          "label": "Naver Client ID",
+          "description": "openapi.naver.com client_id",
+          "required": true
+        },
+        "NAVER_CLIENT_SECRET": {
+          "type": "secret",
+          "label": "Naver Client Secret",
+          "description": "openapi.naver.com client_secret",
+          "required": true
+        }
+      },
+      "source": "functions",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"]
+    }
   ]
 }

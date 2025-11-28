@@ -7,8 +7,12 @@
   --bs-gray: #bfc4c8;
   --bs-secondary-gray: #555;
   --bs-danger: #a89a91;
+  --focus-ring-color: var(--bs-info);
+  --focus-ring-shadow: 0 0 0 0.25rem rgba(201, 181, 156, 0.25);
+  --focus-ring-primary: var(--bs-info);
   /* var(--bs-border-color) */
 }
+
 .bg-primary {
   background-color: var(--bs-primary) !important;
 }
@@ -112,4 +116,34 @@ a:hover {
 }
 .pagination .page-link:focus {
   box-shadow: none;
+}
+#newImagePreview {
+  max-height: 210px;
+  object-fit: contain;
+}
+
+/* 슬라이더 버튼 색상 */
+.form-range::-webkit-slider-thumb {
+  background-color: var(--bs-info);
+  box-shadow: var(--bs-success);
+  border: 0;
+}
+
+/* 눌렀을 때 색상  */
+.form-range:active::-webkit-slider-thumb {
+  background-color: var(--bs-success);
+}
+
+/* 슬라이더 박스 쉐도우 */
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 0.25rem rgba(201, 181, 156, 0.35); /* var(--bs-info) 투명도 버전 */
+}
+.btn-dark {
+  background-color: var(--bs-info);
+  border-color: var(--bs-info);
+}
+.btn-dark:hover {
+  background-color: var(--bs-secondary);
+  border-color: var(--bs-gray);
+  color: var(--bs-gray);
 }

@@ -122,7 +122,7 @@
         </section>
       </main>
     </form>
-    <!-- 새 글 작성 모달 -->
+    <!-- 새 글 작성 모달, 새 글 모달 -->
     <div class="modal fade" id="newPostModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -132,27 +132,68 @@
           </div>
           <div class="modal-body">
             <form id="newPostForm" class="d-flex flex-column gap-3">
-              <div class="d-grid gap-2 mt-3">
-                <button type="button" class="btn btn-outline-dark" id="naverBooksBtn">네이버 Books 검색</button>
+              <div>
+                <label class="form-label fw-bold">책 제목</label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="newTitle" placeholder="데미안" required autocomplete="off" />
+                  <button type="button" class="btn btn-outline-secondary" id="openNaverSearchBtn">네이버 검색</button>
+                </div>
               </div>
               <div>
-                <label class="form-label">책 제목</label>
-                <input type="text" class="form-control" id="newTitle" required />
+                <label class="form-label fw-bold">저자</label>
+                <input type="text" class="form-control" id="newAuthor" placeholder="헤르만 헤세" required autocomplete="off" />
               </div>
               <div>
-                <label class="form-label">작가</label>
-                <input type="text" class="form-control" id="newAuthor" required />
+                <label class="form-label fw-bold">대화 주제(선택)</label>
+                <input type="text" class="form-control" id="newQuestion" placeholder="데미안은 실존 인물일까요?" autocomplete="off" />
               </div>
-              <div>
-                <label class="form-label">질문 (1개)</label>
-                <input type="text" class="form-control" id="newQuestion" placeholder="토론을 시작할 질문을 적어주세요" required />
+              <label class="form-label d-flex align-items-center gap-2 fw-bold">
+                추천하시겠습니까?
+                <span id="ratingValueDisplay" class="text-muted small">0</span>
+              </label>
+              <input
+                type="range"
+                class="form-range"
+                id="newRating"
+                name="rating"
+                min="0"
+                max="5"
+                step="1"
+                value="0"
+                title="0~5 사이에서 선택하세요"
+              />
+              <div class="d-flex justify-content-between">
+                <span class="text-muted small">추천하지 않는다.</span><span class="text-muted small">매우 추천한다.</span>
               </div>
-              <div>
-                <label class="form-label">이미지 (jpg/jpeg/png만)</label>
-                <input type="file" class="form-control" id="newImage" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+              <div class="d-flex flex-column align-items-start">
+                <label class="form-label d-none">표지</label>
+                <input type="hidden" id="newImageUrl" />
+                <img id="newImagePreview" class="img-fluid rounded d-none" alt="표지 미리보기" />
               </div>
-              <button type="submit" class="btn btn-dark w-100">등록</button>
+              <div class="d-flex gap-2">
+                <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>
+                <button id="cancelBookBtn" type="button" class="btn btn-outline-secondary w-100">취소</button>
+              </div>
             </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 네이버 책 검색 모달 -->
+    <div class="modal fade" id="naverSearchModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">네이버 책 검색</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="input-group mb-3">
+              <input id="naverQueryInput" class="form-control" placeholder="책 제목/저자 검색" />
+              <button id="naverSearchBtn" class="btn btn-outline-secondary" type="button">검색</button>
+            </div>
+            <div id="naverResultList" class="row g-3"></div>
           </div>
         </div>
       </div>

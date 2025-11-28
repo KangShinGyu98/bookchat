@@ -4,3 +4,7 @@ serviceAccount*.json
 *.p12
 .runtimeconfig.json
 .vscode/
+.env
+.env.local
+.env.*.local
+functions/.env.book-chat-da2d6

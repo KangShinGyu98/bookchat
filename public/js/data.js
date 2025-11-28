@@ -184,3 +184,12 @@ function normalizeBook(raw) {
     membersCount,
   };
 }
+
+// Naver 책 검색 (Functions 프록시 사용)
+export async function searchNaverBooks(query, { display = 10, start = 1, sort = "sim" } = {}) {
+  if (!query) return { items: [] };
+  const qs = new URLSearchParams({ query, display, start, sort });
+  const res = await fetch(`/searchBooks?${qs.toString()}`);
+  if (!res.ok) throw new Error(`naver search failed: ${res.status}`);
+  return res.json(); // { items: [...] }
+}
