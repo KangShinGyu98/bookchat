@@ -7,11 +7,6 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const { setGlobalOptions } = require("firebase-functions");
-const { onRequest } = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
-const { defineInt, defineString } = require("firebase-functions/params");
-
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
 // traffic spikes by instead downgrading performance. This limit is a
@@ -22,7 +17,6 @@ const { defineInt, defineString } = require("firebase-functions/params");
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
 
 // Create and deploy your first functions
 // https://firebase.google.com/docs/functions/get-started
@@ -31,11 +25,22 @@ setGlobalOptions({ maxInstances: 10 });
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
-
+const { setGlobalOptions } = require("firebase-functions");
+const { onRequest } = require("firebase-functions/https");
+const logger = require("firebase-functions/logger");
+const { defineInt, defineString } = require("firebase-functions/params");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
+const { initializeApp } = require("firebase-admin/app");
+setGlobalOptions({ maxInstances: 10 });
 const functions = require("firebase-functions");
 const fetch = require("node-fetch"); // Node 18+면 글로벌 fetch 가능
 const admin = require("firebase-admin");
-if (!admin.apps.length) admin.initializeApp();
+if (!admin.apps.length) initializeApp();
+const db = getFirestore(admin.app(), "bookchat-database");
+
+// const f = getFirestore();
+// const t = Timestamp.now();
+// const fv = FieldValue.delete();
 
 const client_id = defineString("NAVER_CLIENT_ID");
 const client_secret = defineString("NAVER_CLIENT_SECRET");
@@ -85,16 +90,13 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
 
   const { title, author, rating = 0, imageUrl = "", question = "", createdByName } = req.body || {};
   if (!title || !author) return res.status(400).json({ error: "title/author required" });
-
+  const now = Timestamp.now();
   const uid = decoded.uid;
   const displayName = createdByName || "익명";
+  const questions = question ? [{ text: question, authorName: displayName, authorUid: uid, createdAt: now }] : [];
 
-  const bookRef = admin.firestore().collection("books").doc();
-  const questions = question
-    ? [{ text: question, authorName: displayName, authorUid: uid, createdAt: admin.firestore.FieldValue.serverTimestamp() }]
-    : [];
-
-  const bookData = {
+  const bookRef = db.collection("books").doc(); // admin.firestore() 사용 금지
+  await bookRef.set({
     title,
     author,
     rating: Number(rating) || 0,
@@ -102,19 +104,17 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
     questions,
     createdByUid: uid,
     createdByName: displayName,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: now,
     lastMessage: null,
     lastMessageAt: null,
     members: [uid],
     membersCount: 1,
-  };
+  });
 
-  await bookRef.set(bookData);
-  await admin
-    .firestore()
+  await db
     .collection("users")
     .doc(uid)
-    .set({ subscribedBooks: admin.firestore.FieldValue.arrayUnion(bookRef.id) }, { merge: true });
+    .set({ subscribedBooks: FieldValue.arrayUnion(bookRef.id) }, { merge: true });
 
   return res.json({ ok: true, id: bookRef.id });
 });

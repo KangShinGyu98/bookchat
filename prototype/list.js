@@ -226,7 +226,7 @@ function renderBoard() {
         <td>${item.author}</td>
         <td>${item.writer || "-"}</td>
         <td class="text-muted">${formatDate(item.createdAt)}</td>
-        <td>${item.members || 0}명</td>
+        <td>${item.membersCount || 0}명</td>
       </tr>`
     );
   });

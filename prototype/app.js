@@ -9,7 +9,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
@@ -20,12 +20,12 @@ export const firebaseConfig = {
   storageBucket: "book-chat-da2d6.firebasestorage.app",
   messagingSenderId: "636447158366",
   appId: "1:636447158366:web:0103fd018cc5c19ece04cf",
-  measurementId: "G-YE0KCFD67Y"
+  measurementId: "G-YE0KCFD67Y",
 };
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getFirestore(app, "bookchat-database");
 const googleProvider = new GoogleAuthProvider();
 
 export function onUser(cb) {

@@ -122,6 +122,9 @@ const runNaverSearch = async (keyword) => {
   try {
     const data = await searchNaverBooks(keyword);
     console.log("네이버 검색 결과:", data);
+    data.items.forEach((item) => {
+      item.author = item.author.replaceAll("^", ",");
+    });
     renderNaverCards(data.items || []);
   } catch (err) {
     console.error(err);
@@ -319,7 +322,7 @@ function renderBooks(books) {
       <td class="text-center text-truncate" style="max-width: 50px;">${ratingText}</td>
       <td class="text-truncate" style="max-width: 516px;"><a href=chat.html?book=\${encodeURIComponent(book.slug)}>${book.title || "-"}</a></td>
       <td class="text-truncate" style="max-width: 160px;">${book.author || "-"}</td>
-      <td class="text-truncate" style="max-width: 120px;">${book.createdByUid || "-"}</td>
+      <td class="text-truncate" style="max-width: 120px;">${book.createdByName || "-"}</td>
       <td class="text-center text-truncate" style="max-width: 90px;">${formatDate(book.createdAt)}</td>
       <td class="text-center text-truncate" style="max-width: 60px;">${book.membersCount ?? 0}</td>
     `;
