@@ -1,4 +1,4 @@
-import { loginWithGoogle, onUser, logout, db } from "./app.js";
+import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
 import { getBooks, searchNaverBooks } from "./data.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow, toastWarning } from "./myToast.js";
@@ -58,7 +58,7 @@ if (naverSearchModalEl && window.bootstrap) naverSearchModal = new bootstrap.Mod
 //등록 버튼
 newPostForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const user = window.firebaseUserCache;
+  const user = auth.user;
   if (!user) return toastShow("로그인이 필요합니다.");
   // 프로필에서 닉네임 다시 읽기
   const profileRef = doc(db, "users", user.uid);
@@ -191,7 +191,7 @@ naverQueryInput?.addEventListener("keydown", (e) => {
 });
 
 newPostOpenBtn?.addEventListener("click", () => {
-  const user = window.firebaseUserCache;
+  const user = auth.user;
   if (user) {
     newPostModal?.show();
   } else {
