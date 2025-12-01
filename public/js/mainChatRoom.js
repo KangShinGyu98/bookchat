@@ -1,4 +1,4 @@
-import { auth, db, loginWithGoogle, loginWithEmailPassword, logout, onUser } from "./app.js";
+import { auth, db, onUser } from "./app.js";
 import {
   doc,
   getDoc,
@@ -10,26 +10,18 @@ import {
   onSnapshot,
   setDoc,
   deleteDoc,
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { toastShow } from "./myToast.js";
 
 const params = new URLSearchParams(location.search);
-const slug = params.get("book");
-
 const bookTitleEl = document.getElementById("bookTitle");
 const bookMetaEl = document.getElementById("bookMeta");
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("msgForm");
 const input = document.getElementById("msgInput");
-const leaveBtn = document.getElementById("leaveBtn");
+const unSubscribeBtn = document.getElementById("unSubscribeBtn");
 const userArea = document.getElementById("userArea");
 const loginBtn = document.getElementById("loginBtn");
-
-loginBtn?.addEventListener("click", () => loginWithGoogle());
-
-if (!slug) {
-  alert("book 파라미터가 없습니다.");
-  location.href = "index.html";
-}
 
 let unsubscribeMsgs = null;
 
@@ -45,7 +37,6 @@ async function loadBook() {
   const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000) : null;
   bookMetaEl.textContent = `${data.author || "-"} · 평점 ${data.rating ?? "-"} · 작성일 ${createdAt ? createdAt.toLocaleDateString() : "-"}`;
 }
-
 function renderMessages(snapshot) {
   messagesEl.innerHTML = "";
   snapshot.forEach((docSnap) => {
@@ -65,18 +56,12 @@ function renderMessages(snapshot) {
 
 function subscribeMessages() {
   if (unsubscribeMsgs) unsubscribeMsgs();
-  console.log("test1");
   const q = query(collection(db, "books", slug, "messages"), orderBy("createdAt"));
-  console.log("test2");
   unsubscribeMsgs = onSnapshot(q, (snap) => renderMessages(snap));
-  console.log("test3");
-}
-
-async function joinIfNeeded(user) {
-  await setDoc(doc(db, "books", slug, "members", user.uid), { joinedAt: serverTimestamp(), lastReadAt: serverTimestamp() }, { merge: true });
 }
 
 form.addEventListener("submit", async (e) => {
+  console.log("test");
   e.preventDefault();
   const user = auth.currentUser;
   if (!user) {
@@ -94,7 +79,7 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
 });
 
-leaveBtn.addEventListener("click", async () => {
+unSubscribeBtn.addEventListener("click", async () => {
   const user = auth.currentUser;
   if (!user) {
     alert("로그인 필요");
@@ -106,13 +91,8 @@ leaveBtn.addEventListener("click", async () => {
 
 onUser((user) => {
   if (user) {
-    userArea.innerHTML = `<span class="small text-muted">${user.email || user.displayName}</span>
-      <button class="btn btn-outline-secondary btn-sm" id="logoutBtn">로그아웃</button>`;
-    document.getElementById("logoutBtn").onclick = () => logout();
-    joinIfNeeded(user);
+    // --todo 구독 or 구독 아닌지에 따라서 설정
   } else {
-    userArea.innerHTML = `<button class="btn btn-outline-primary btn-sm" id="loginBtn">로그인</button>`;
-    document.getElementById("loginBtn").onclick = () => loginWithGoogle();
   }
 });
 

@@ -11,7 +11,8 @@
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
         { "source": "/searchBooks", "function": "searchBooks" },
-        { "source": "/createBook", "function": "createBook" }
+        { "source": "/createBook", "function": "createBook" },
+        { "source": "/chat", "destination": "/chat.html" }
       ]
     }
   ],

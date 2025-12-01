@@ -7,6 +7,7 @@ import {
   signOut,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInAnonymously,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
@@ -38,6 +39,10 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, "bookchat-database");
 const googleProvider = new GoogleAuthProvider();
+
+signInAnonymously(auth).catch((error) => {
+  console.error("Anonymous sign-in error", error);
+});
 
 //래핑 함수
 export function onUser(cb) {

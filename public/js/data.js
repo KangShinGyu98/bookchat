@@ -11,9 +11,9 @@ import algoliasearch from "https://cdn.jsdelivr.net/npm/algoliasearch@4.24.0/dis
 export async function getBooks(searchCondition) {
   const field = normalizeOrder(searchCondition.orderBy);
   const offsetIndex = Math.max(searchCondition.pageIndex - 1, 0) * searchCondition.pageSize;
-  if (USE_LOCAL) {
-    return getLocalPage(offsetIndex, searchCondition.pageSize, field);
-  }
+  // if (USE_LOCAL) {
+  //   return getLocalPage(offsetIndex, searchCondition.pageSize, field);
+  // }
   return getFirebasePage(searchCondition);
 }
 
@@ -105,7 +105,6 @@ async function getFirebasePage(searchCondition) {
   //  - res.nbPages   : 전체 페이지 수
   //  - res.nbHits    : 전체 결과 개수
   //  - res.hitsPerPage: 페이지당 개수
-
   return res;
 }
 

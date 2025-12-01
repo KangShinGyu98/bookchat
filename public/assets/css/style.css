@@ -147,3 +147,38 @@ a:hover {
   border-color: var(--bs-gray);
   color: var(--bs-gray);
 }
+
+.chat-widget-container {
+  position: fixed;
+  bottom: 40px; /* 화면 아래에서 40px 위 */
+  right: calc((100% - 1000px) / 2 - 19rem);
+  width: 18rem;
+  height: 20rem;
+  z-index: 1000;
+}
+.card-footer {
+  padding: 0.3rem;
+}
+
+.nickname-badge:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.chat-card {
+  height: 65vh;
+  overflow-y: auto;
+}
+.msg {
+  max-width: 65%;
+  border-radius: 16px;
+  padding: 10px 14px;
+}
+.msg-me {
+  margin-left: auto;
+  background: #0d6efd;
+  color: #fff;
+}
+.msg-other {
+  background: #e5e7eb;
+  color: #111827;
+}
