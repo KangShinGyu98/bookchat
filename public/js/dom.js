@@ -58,7 +58,7 @@ if (naverSearchModalEl && window.bootstrap) naverSearchModal = new bootstrap.Mod
 //등록 버튼
 newPostForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const user = auth.user;
+  const user = auth.currentUser;
   if (!user) return toastShow("로그인이 필요합니다.");
   // 프로필에서 닉네임 다시 읽기
   const profileRef = doc(db, "users", user.uid);
@@ -191,7 +191,7 @@ naverQueryInput?.addEventListener("keydown", (e) => {
 });
 
 newPostOpenBtn?.addEventListener("click", () => {
-  const user = auth.user;
+  const user = auth.currentUser;
   if (user) {
     newPostModal?.show();
   } else {

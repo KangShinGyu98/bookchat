@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
     const nicknameInput = document.getElementById("nickname");
     const nickname = nicknameInput?.value?.trim();
-    const user = auth.user;
+    const user = auth.currentUser;
     if (!user) {
       toastShow("로그인이 필요합니다.");
       return;
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
   });
   loginOpenBtn?.addEventListener("click", async () => {
-    const user = auth.user;
+    const user = auth.currentUser;
     if (user) {
       await logout();
       toastShow("성공적으로 로그아웃 되었습니다.");

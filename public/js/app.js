@@ -40,9 +40,11 @@ export const auth = getAuth(app);
 export const db = getFirestore(app, "bookchat-database");
 const googleProvider = new GoogleAuthProvider();
 
-signInAnonymously(auth).catch((error) => {
-  console.error("Anonymous sign-in error", error);
-});
+if (!auth.currentUser) {
+  signInAnonymously(auth).catch((error) => {
+    console.error("Anonymous sign-in error", error);
+  });
+}
 
 //래핑 함수
 export function onUser(cb) {
