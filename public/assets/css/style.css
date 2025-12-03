@@ -31,7 +31,12 @@
 .bg-gray {
   background-color: var(--bs-gray) !important;
 }
-
+.text-xs {
+  font-size: 0.75rem; /* 12px */
+}
+.text-2xs {
+  font-size: 0.625rem; /* 10px */
+}
 .temp {
   border: 2px solid;
   border-color: darkgray;
@@ -152,33 +157,42 @@ a:hover {
   position: fixed;
   bottom: 40px; /* 화면 아래에서 40px 위 */
   right: calc((100% - 1000px) / 2 - 19rem);
+  /* right: calc((100% - 1000px) / 2); */
   width: 18rem;
   height: 20rem;
   z-index: 1000;
 }
+@media (max-width: 1000px) {
+  .chat-widget-container {
+    right: 1rem; /* 보드 안쪽으로 밀어넣기 */
+  }
+}
 .card-footer {
   padding: 0.3rem;
 }
-
+.card-body {
+  height: inherit;
+  padding: 0.3rem;
+  overflow-y: auto;
+}
 .nickname-badge:hover {
   text-decoration: underline;
   cursor: pointer;
 }
 .chat-card {
-  height: 65vh;
+  height: 70vh;
   overflow-y: auto;
 }
 .msg {
   max-width: 65%;
-  border-radius: 16px;
-  padding: 10px 14px;
 }
 .msg-me {
-  margin-left: auto;
-  background: #0d6efd;
-  color: #fff;
+  color: #333;
 }
 .msg-other {
-  background: #e5e7eb;
-  color: #111827;
+  color: black;
+}
+
+.msg-text {
+  margin-bottom: 0.2rem;
 }

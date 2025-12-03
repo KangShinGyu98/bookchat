@@ -24,7 +24,7 @@ const unSubscribeBtn = document.getElementById("unSubscribeBtn");
 const userArea = document.getElementById("userArea");
 const loginBtn = document.getElementById("loginBtn");
 const memberCountSpan = document.getElementById("chat-card-member-count");
-
+const chatFoldBtn = document.getElementById("chat-fold-btn");
 ///
 // 오늘 날짜 키 (예: "2025-12-02")
 export function joinRoom(user) {
@@ -86,11 +86,11 @@ function renderMessages(snapshot) {
     const m = docSnap.data();
     const isMe = auth.currentUser && m.senderUid === auth.currentUser.uid;
     const div = document.createElement("div");
-    div.className = `d-flex mb-2 ${isMe ? "justify-content-end" : "justify-content-start"}`;
+    div.className = `d-flex ${isMe ? "justify-content-end" : "justify-content-start"}`;
     div.innerHTML = `
       <div class="msg ${isMe ? "msg-me" : "msg-other"}">
-        <div class="small text-muted mb-1">${m.senderName || "익명"}</div>
-        <div>${m.text || ""}</div>
+        <div class="text-xs text-muted  ${isMe ? "text-end" : "text-start"}">${m.senderName || "익명"}</div>
+        <div class="text-start mb-1 small">${m.text || ""}</div>
       </div>`;
     messagesEl.appendChild(div);
   });
@@ -112,8 +112,8 @@ form.addEventListener("submit", async (e) => {
   const today = new Date().toISOString().split("T")[0];
   await addDoc(collection(db, "chatrooms", today, "messages"), {
     text,
-    senderUid: user.isAnonymous ? "익명" + user.uid.slice(0, 4) : user.uid,
-    senderName: user.displayName || "익명" + user.uid.slice(0, 4),
+    senderUid: user.isAnonymous ? "익명#" + user.uid.slice(0, 4) : user.uid,
+    senderName: user.displayName || "익명#" + user.uid.slice(0, 4),
     createdAt: serverTimestamp(),
   });
   input.value = "";
