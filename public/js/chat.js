@@ -67,7 +67,7 @@ function subscribeMessages() {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const user = auth.currentUser;
+  const user = auth.currentUser && !auth.currentUser.isAnonymous;
   if (!user) {
     alert("로그인 후 작성 가능합니다.");
     return;
@@ -84,7 +84,7 @@ form.addEventListener("submit", async (e) => {
 });
 
 unSubscribeBtn.addEventListener("click", async () => {
-  const user = auth.currentUser;
+  const user = auth.currentUser && !auth.currentUser.isAnonymous;
   if (!user) {
     alert("로그인 필요");
     return;

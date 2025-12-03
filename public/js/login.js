@@ -1,5 +1,6 @@
 import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { toastShow, toastWarning } from "./myToast.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -93,7 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
     const nicknameInput = document.getElementById("nickname");
     const nickname = nicknameInput?.value?.trim();
-    const user = auth.currentUser;
+    const user = auth.currentUser && !auth.currentUser.isAnonymous;
     if (!user) {
       toastShow("로그인이 필요합니다.");
       return;
@@ -113,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
   });
   loginOpenBtn?.addEventListener("click", async () => {
-    const user = auth.currentUser;
+    const user = auth.currentUser && !auth.currentUser.isAnonymous;
     if (user) {
       await logout();
       toastShow("성공적으로 로그아웃 되었습니다.");
@@ -139,12 +140,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   onUser((user) => {
     if (loginOpenBtn) {
-      loginOpenBtn.innerHTML = user ? `<i class="bi bi-box-arrow-right"></i> 로그아웃` : `<i class="bi bi-box-arrow-in-right"></i> 로그인`;
+      loginOpenBtn.innerHTML =
+        user && !user.isAnonymous ? `<i class="bi bi-box-arrow-right"></i> 로그아웃` : `<i class="bi bi-box-arrow-in-right"></i> 로그인`;
+      if (!user) nicknameContainer.textContent = "";
     }
   });
 
   onUser(async (user) => {
-    if (!user) return;
+    console.log(`onuser called user : ${user}`);
+    if (!user) {
+      console.log(`onuser signed anonymously`);
+
+      signInAnonymously(auth).catch((error) => {
+        console.error("Anonymous sign-in error", error);
+      });
+      return;
+    } else if (user.isAnonymous) {
+      console.log(`onuser is anonymous`);
+
+      return;
+    }
     try {
       const profileRef = doc(db, "users", user.uid);
       const snap = await getDoc(profileRef);
@@ -161,3 +176,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 });
+
+let loginModal;
+export function showLoginModal() {
+  // 모달 마크업 삽입, 요소 선택
+  const el = document.getElementById("loginModal");
+  if (el && window.bootstrap) loginModal = new bootstrap.Modal(el);
+  loginModal.show();
+}

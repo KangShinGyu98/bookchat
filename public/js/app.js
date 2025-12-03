@@ -7,9 +7,10 @@ import {
   signOut,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signInAnonymously,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  linkWithPopup,
+  signInWithCredential,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   doc,
@@ -24,6 +25,8 @@ import {
   deleteDoc,
   getFirestore,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyA9bkq2Zgs2yWfCBfgCl1GdSDehMY3ZGRs",
@@ -38,25 +41,78 @@ export const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, "bookchat-database");
+export const rtdb = getDatabase();
 const googleProvider = new GoogleAuthProvider();
-
-if (!auth.currentUser) {
-  signInAnonymously(auth).catch((error) => {
-    console.error("Anonymous sign-in error", error);
-  });
-}
 
 //래핑 함수
 export function onUser(cb) {
   return onAuthStateChanged(auth, cb);
 }
 export async function logout() {
-  return signOut(auth);
+  const user = auth.currentUser;
+  console.log(`user : ${user}`);
+  try {
+    if (user) {
+      console.log(`pres : ${user.uid}`);
+
+      const presenceRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
+      console.log(`presref : ${presenceRef}`);
+
+      await remove(presenceRef);
+      console.log("presence removed");
+
+      // 🔍 3) 삭제 후 값 확인
+      const afterSnap = await get(presenceRef);
+      console.log("presence after remove:", afterSnap.val());
+    }
+    await signOut(auth);
+  } catch (err) {
+    console.log(err);
+    alert("로그아웃 중 문제가 발생했습니다.");
+  }
 }
 
 //사용함수들
 export async function loginWithGoogle() {
-  const result = await signInWithPopup(auth, googleProvider);
+  const provider = googleProvider;
+  const current = auth.currentUser;
+  let result = null;
+  // 이미 익명 로그인된 상태라면 → 계정 업그레이드
+  if (current && current.isAnonymous) {
+    const beforeUid = current.uid; // 익명 UID 저장
+    // const today = new Date().toISOString().split("T")[0];
+    try {
+      result = await linkWithPopup(current, provider);
+    } catch (err) {
+      // 계정이 이미 다른 provider로 만들어져 있을 때 등 예외 처리
+      // 여기서 credential-already-in-use 발생 가능
+      if (err.code === "auth/credential-already-in-use") {
+        console.log("이미 다른 계정에 연결된 Google 계정, merge 로직 실행");
+
+        // ① 에러에서 credential 추출
+        const cred = GoogleAuthProvider.credentialFromError(err);
+
+        // ② 기존 Google 계정으로 로그인
+        result = await signInWithCredential(auth, cred);
+        const googleUser = result.user;
+        const afterUid = googleUser.uid; // 기존에 있던 Google UID
+
+        console.log("기존 Google 계정으로 로그인됨:", afterUid);
+
+        // ③ 익명 UID → Google UID로 데이터 merge / 정리
+        await mergeAnonymousUserData(beforeUid, afterUid);
+      }
+    }
+  } else {
+    try {
+      result = await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error("signInWithPopup error", err);
+      throw err;
+    }
+  }
+
+  // const result = await signInWithPopup(auth, googleProvider);
   const user = result.user; // firebase user
 
   const userRef = doc(db, "users", user.uid);
@@ -64,7 +120,6 @@ export async function loginWithGoogle() {
 
   if (!snap.exists()) {
     // 여기서가 “자동 회원가입” 영역
-    //todo 닉네임 물어보는 모달 띄우기 - 로그아웃 되어야하는지 확인하기
     await setDoc(userRef, {
       uid: user.uid,
       email: user.email,
@@ -73,5 +128,37 @@ export async function loginWithGoogle() {
       provider: "google",
       createdAt: new Date(),
     });
+  }
+}
+
+export async function mergeAnonymousUserData(anonUid, googleUid) {
+  if (!anonUid || !googleUid) return;
+
+  const anonUserRef = ref(rtdb, `mainchatroom/presence/users/${anonUid}`);
+  const googleUserRef = ref(rtdb, `mainchatroom/presence/users/${googleUid}`);
+
+  try {
+    const snap = await get(anonUserRef);
+    if (!snap.exists()) {
+      console.log("익명 유저 데이터가 없어서 merge 할 게 없음");
+      return;
+    }
+
+    const anonData = snap.val();
+
+    // 🔹 googleUid 에 이미 데이터가 있을 수도 있으니 merge 형태로 처리
+    const updates = {};
+    updates[`mainchatroom/presence/users/${googleUid}`] = {
+      ...(typeof anonData === "object" ? anonData : {}),
+      // 여기서 displayName, isAnonymous 등 필요하면 덮어쓰기 가능
+      isAnonymous: false,
+    };
+    updates[`mainchatroom/presence/users/${anonUid}`] = null; // 익명 노드 삭제
+
+    await update(ref(rtdb), updates);
+
+    console.log(`익명 UID(${anonUid}) 데이터를 Google UID(${googleUid})로 merge 완료`);
+  } catch (err) {
+    console.error("mergeAnonymousUserData 에러:", err);
   }
 }

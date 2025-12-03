@@ -2,6 +2,7 @@ import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
 import { getBooks, searchNaverBooks } from "./data.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow, toastWarning } from "./myToast.js";
+import { showLoginModal } from "./login.js";
 // dom 조작, event 리스너 등록, rendering, format 과 같은 Util 함수들
 
 const orderSelect = document.getElementById("orderBy");
@@ -58,9 +59,10 @@ if (naverSearchModalEl && window.bootstrap) naverSearchModal = new bootstrap.Mod
 //등록 버튼
 newPostForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요합니다.");
   const user = auth.currentUser;
-  if (!user) return toastShow("로그인이 필요합니다.");
   // 프로필에서 닉네임 다시 읽기
+
   const profileRef = doc(db, "users", user.uid);
   const profileSnap = await getDoc(profileRef);
   const profile = profileSnap.exists() ? profileSnap.data() : {};
@@ -191,12 +193,12 @@ naverQueryInput?.addEventListener("keydown", (e) => {
 });
 
 newPostOpenBtn?.addEventListener("click", () => {
-  const user = auth.currentUser;
+  const user = auth.currentUser && !auth.currentUser.isAnonymous;
   if (user) {
     newPostModal?.show();
   } else {
     toastShow("로그인이 필요합니다.");
-    loginModal?.show();
+    showLoginModal();
   }
 });
 

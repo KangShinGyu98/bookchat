@@ -28,13 +28,14 @@
 const { setGlobalOptions } = require("firebase-functions");
 const { onRequest } = require("firebase-functions/https");
 const logger = require("firebase-functions/logger");
-const { defineInt, defineString } = require("firebase-functions/params");
+const { defineString } = require("firebase-functions/params");
 const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
-setGlobalOptions({ maxInstances: 10 });
 const functions = require("firebase-functions");
 const fetch = require("node-fetch"); // Node 18+면 글로벌 fetch 가능
 const admin = require("firebase-admin");
+
+setGlobalOptions({ maxInstances: 10 });
 if (!admin.apps.length) initializeApp();
 const db = getFirestore(admin.app(), "bookchat-database");
 

@@ -207,12 +207,12 @@
       <div class="card-header d-flex justify-content-between bg-secondary">
         <span id="chat-card-member-count"> 접속인원 </span><span><i class="bi bi-dash-lg"></i></span>
       </div>
-      <div class="card-body"></div>
+      <div class="card-body" id="messages"></div>
       <div class="card-footer bg-secondary">
-        <div class="input-group input-group-sm w-100">
+        <form class="input-group input-group-sm w-100" id="chatForm">
           <input type="search" class="form-control form-control-sm rounded-start" name="chatInput" id="chatInput" placeholder="메시지 입력..." />
-          <button class="btn btn-sm btn-outline-secondary bg-success" type="button" id="chatInputBtn">입력</button>
-        </div>
+          <button class="btn btn-sm btn-outline-secondary bg-success" type="submit" id="chatInputBtn">입력</button>
+        </form>
       </div>
     </div>
     <!-- Bootstrap JS Bundle with Popper -->
@@ -225,6 +225,6 @@
     <script type="module" src="./js/data.js"></script>
     <script type="module" src="./js/dom.js"></script>
     <script type="module" src="./js/login.js"></script>
-    <!-- <script type="module" src="./js/mainChatRoom.js"></script> -->
+    <script type="module" src="./js/mainChatRoom.js"></script>
   </body>
 </html>

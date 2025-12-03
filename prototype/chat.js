@@ -65,11 +65,8 @@ function renderMessages(snapshot) {
 
 function subscribeMessages() {
   if (unsubscribeMsgs) unsubscribeMsgs();
-  console.log("test1");
   const q = query(collection(db, "books", slug, "messages"), orderBy("createdAt"));
-  console.log("test2");
   unsubscribeMsgs = onSnapshot(q, (snap) => renderMessages(snap));
-  console.log("test3");
 }
 
 async function joinIfNeeded(user) {

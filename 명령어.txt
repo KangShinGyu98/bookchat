@@ -9,6 +9,6 @@ firebase deploy --only functions
 
 npx firebase hosting:sites:list
 
-firebase emulators:start --only hosting,firestore,auth,functions
+npx firebase emulators:start --only hosting,firestore,auth,functions
 
 firebase functions:config:set naver.client_id="YOUR_ID" naver.client_secret="YOUR_SECRET"
