@@ -50,24 +50,18 @@ export function onUser(cb) {
 }
 export async function logout() {
   const user = auth.currentUser;
-  console.log(`user : ${user}`);
   try {
     if (user) {
-      console.log(`pres : ${user.uid}`);
 
       const presenceRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
-      console.log(`presref : ${presenceRef}`);
 
       await remove(presenceRef);
-      console.log("presence removed");
 
       // 🔍 3) 삭제 후 값 확인
       const afterSnap = await get(presenceRef);
-      console.log("presence after remove:", afterSnap.val());
     }
     await signOut(auth);
   } catch (err) {
-    console.log(err);
     alert("로그아웃 중 문제가 발생했습니다.");
   }
 }
@@ -87,7 +81,6 @@ export async function loginWithGoogle() {
       // 계정이 이미 다른 provider로 만들어져 있을 때 등 예외 처리
       // 여기서 credential-already-in-use 발생 가능
       if (err.code === "auth/credential-already-in-use") {
-        console.log("이미 다른 계정에 연결된 Google 계정, merge 로직 실행");
 
         // ① 에러에서 credential 추출
         const cred = GoogleAuthProvider.credentialFromError(err);
@@ -97,7 +90,6 @@ export async function loginWithGoogle() {
         const googleUser = result.user;
         const afterUid = googleUser.uid; // 기존에 있던 Google UID
 
-        console.log("기존 Google 계정으로 로그인됨:", afterUid);
 
         // ③ 익명 UID → Google UID로 데이터 merge / 정리
         await mergeAnonymousUserData(beforeUid, afterUid);
@@ -140,7 +132,6 @@ export async function mergeAnonymousUserData(anonUid, googleUid) {
   try {
     const snap = await get(anonUserRef);
     if (!snap.exists()) {
-      console.log("익명 유저 데이터가 없어서 merge 할 게 없음");
       return;
     }
 
@@ -157,7 +148,6 @@ export async function mergeAnonymousUserData(anonUid, googleUid) {
 
     await update(ref(rtdb), updates);
 
-    console.log(`익명 UID(${anonUid}) 데이터를 Google UID(${googleUid})로 merge 완료`);
   } catch (err) {
     console.error("mergeAnonymousUserData 에러:", err);
   }

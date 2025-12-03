@@ -158,13 +158,25 @@ a:hover {
   bottom: 40px; /* 화면 아래에서 40px 위 */
   right: calc((100% - 1000px) / 2 - 19rem);
   /* right: calc((100% - 1000px) / 2); */
-  width: 18rem;
+  width: 17rem;
   height: 20rem;
   z-index: 1000;
+}
+.chat-widget-container-open-btn {
+  position: fixed;
+  bottom: 7.75rem; /* 화면 아래에서 40px 위 */
+  right: calc((100% - 1000px) / 2 - 4rem);
+  z-index: 1000;
+  background-color: var(--bs-success);
+  border: var(--bs-gray);
 }
 @media (max-width: 1000px) {
   .chat-widget-container {
     right: 1rem; /* 보드 안쪽으로 밀어넣기 */
+  }
+  .chat-widget-container-open-btn {
+    right: 4rem; /* 보드 안쪽으로 밀어넣기 */
+    bottom: 9.5rem;
   }
 }
 .card-footer {
@@ -181,13 +193,18 @@ a:hover {
 }
 .chat-card {
   height: 70vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
+
 .msg {
   max-width: 65%;
 }
 .msg-me {
-  color: #333;
+  color: rgba(68, 68, 68, 0.9); /* 알파값 0.7 (30% 투명) */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 .msg-other {
   color: black;
@@ -195,4 +212,71 @@ a:hover {
 
 .msg-text {
   margin-bottom: 0.2rem;
+}
+
+/* 질문 카드 스타일 */
+.carousel-inner {
+  padding: 0.5rem 2rem;
+  height: 5rem;
+  flex: 0 0 auto;
+}
+
+.carousel-item {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.5rem;
+}
+
+.question-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+.question-text {
+  text-align: center;
+  font-size: 0.875rem;
+  display: -webkit-box; /* flex 대신 사용 (줄 제한용) */
+  -webkit-box-orient: vertical; /* 수직 방향 */
+  -webkit-line-clamp: 2; /* 2줄에서 ellipsis */
+  line-clamp: 2;
+  overflow: hidden;
+
+  width: 50%;
+  margin: 0 auto; /* 가운데 정렬 유지 */
+}
+
+.carousel-item:nth-child(odd) {
+  background-color: var(--bs-secondary);
+}
+.carousel-item:nth-child(even) {
+  background-color: var(--bs-success);
+}
+/* carousel 컨트롤 버튼 색상 */
+.carousel-control-prev,
+.carousel-control-next,
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+  filter: brightness(0.2);
+}
+.carousel-control-prev:hover,
+.carousel-control-next:hover,
+.carousel-control-prev-icon:hover,
+.carousel-control-next-icon:hover {
+  filter: brightness(0.3);
+}
+
+.messages {
+  flex: 1 1 auto; /* 남은 공간 다 먹음 */
+  min-height: 0; /* 이거 있어야 스크롤 제대로 생김 */
+  overflow-y: auto;
+}
+/* 아래 입력 폼 */
+.msgForm {
+  flex: 0 0 auto;
+}
+#chatInput {
+  resize: none; /* 손으로 크기 조절 금지 */
+  overflow-y: hidden; /* 스크롤 대신 높이 증가 */
 }

@@ -85,7 +85,7 @@
           </div>
           <div class="d-flex gap-2 align-items-center">
             <!-- <button class="btn btn-sm" id="toastbtn" type="button">토스트</button> -->
-            <button class="btn btn-sm btn-outline-secondary" type="button" id="newPostOpenBtn">+ 새 글 작성</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="newPostOpenBtn"><i class="bi bi-plus-lg"></i> 새 글 작성</button>
             <label class="text-muted">페이지당</label>
             <select class="form-select form-select-sm" style="width: 90px" name="pageSize" id="pageSizeSelect">
               <option value="15">15</option>
@@ -182,7 +182,6 @@
         </div>
       </div>
     </div>
-
     <!-- 네이버 책 검색 모달 -->
     <div class="modal fade" id="naverSearchModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -202,10 +201,15 @@
       </div>
     </div>
 
+    <!-- 채팅 위젯 open 버튼 -->
+    <button type="button" class="btn btn-sm btn-outline-secondary chat-widget-container-open-btn d-none" id="chat-widget-container-open-btn">
+      <i class="bi bi-plus-lg"></i>
+    </button>
     <!-- 메인 화면 채팅창 위젯 -->
-    <div class="card text-center chat-widget-container">
+    <div class="card text-center chat-widget-container" id="chat-widget-container">
       <div class="card-header d-flex justify-content-between bg-secondary">
-        <span id="chat-card-member-count"> 접속인원 </span><span><i class="bi bi-dash-lg" id="chat-fold-btn"></i></span>
+        <span id="chat-card-member-count"> 접속인원 </span>
+        <button class="btn btn-sm" id="chat-fold-btn" type="button"><i class="bi bi-dash-lg"></i></button>
       </div>
       <div class="card-body" id="messages"></div>
       <div class="card-footer bg-secondary">

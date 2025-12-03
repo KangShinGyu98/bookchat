@@ -37,21 +37,59 @@
           </button>
         </div>
       </div>
-
-      <div class="border bg-white p-3 chat-card rounded-0" id="messages"></div>
-      <form id="msgForm" class="input-group input-group-sm w-100">
-        <input
-          type="search"
-          class="form-control form-control-sm rounded-end-0 rounded-top-0 border-top-0 p-2"
-          name="msgInput"
-          id="msgInput"
-          placeholder="메시지 입력..."
-          autocomplete="off"
-        />
-        <button class="btn btn-sm btn-outline-secondary bg-success rounded-start-0 rounded-top-0 border-top-0 px-3" type="submit" id="chatInputBtn">
-          입력
-        </button>
-      </form>
+      <div class="border bg-white chat-card rounded">
+        <div id="carouselControls" class="carousel slide" data-bs-ride="carousel" data-bs-interval="50000">
+          <div class="carousel-inner text-muted text-sm">
+            <div class="carousel-item active">
+              <div class="question-item">
+                <div class="question-text">
+                  "테스트용 질문입니다. 1번 데미안은 과연 테스트용 질문입니다. 1번 데미안은 과연 테스트용 질문입니다. 1번 데미안은 과연 "
+                </div>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="question-item">
+                <div class="question-text">"테스트용 질문 두번째입니다. 2번 좁은문에서 좁은 문은"</div>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="question-item">
+                <div class="question-text">"테스트용 질문 세번째입니다. 3번 질문 내용은 무엇일까요?"</div>
+              </div>
+            </div>
+          </div>
+          <a class="carousel-control-prev" href="#carouselControls" role="button" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">Previous</span>
+          </a>
+          <a class="carousel-control-next" href="#carouselControls" role="button" data-bs-slide="next">
+            <span class="sr-only">Next</span>
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          </a>
+        </div>
+        <div id="messages" class="messages p-3"></div>
+        <form id="msgForm" class="input-group input-group-sm w-100">
+          <!-- <input
+            type="search"
+            class="form-control form-control-sm rounded-end-0 rounded-top-0 border-bottom-0 border-start-0 border-end-0 p-2"
+            name="msgInput"
+            id="msgInput"
+            placeholder="메시지 입력..."
+            autocomplete="off"
+          /> -->
+          <textarea
+            class="form-control form-control-sm rounded-end-0 rounded-top-0 border-bottom-0 border-start-0 border-end-0 p-2"
+            name="msgInput"
+            id="msgInput"
+            placeholder="메시지 입력..."
+            rows="1"
+            autocomplete="off"
+          ></textarea>
+          <button class="btn btn-sm btn-outline-secondary bg-success rounded-start-0 rounded-top-0 border-top-0 px-3" type="submit" id="chatInputBtn">
+            입력
+          </button>
+        </form>
+      </div>
     </main>
 
     <!-- js파일 -->

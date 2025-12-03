@@ -33,7 +33,6 @@ const ratingValueDisplay = document.getElementById("ratingValueDisplay");
 const syncRating = () => {
   if (!ratingInput || !ratingValueDisplay) return;
   ratingValueDisplay.textContent = ratingInput.value;
-  // console.log("Rating set to:", ratingInput.value);
 };
 
 ratingInput?.addEventListener("input", syncRating); // 드래그 중
@@ -114,7 +113,6 @@ const runNaverSearch = async (keyword) => {
 
   try {
     const data = await searchNaverBooks(keyword);
-    console.log("네이버 검색 결과:", data);
     data.items.forEach((item) => {
       item.author = item.author.replaceAll("^", ",");
     });

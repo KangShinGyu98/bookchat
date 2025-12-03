@@ -147,16 +147,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   onUser(async (user) => {
-    console.log(`onuser called user : ${user}`);
     if (!user) {
-      console.log(`onuser signed anonymously`);
 
       signInAnonymously(auth).catch((error) => {
         console.error("Anonymous sign-in error", error);
       });
       return;
     } else if (user.isAnonymous) {
-      console.log(`onuser is anonymous`);
 
       return;
     }

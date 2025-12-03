@@ -25,11 +25,22 @@ const userArea = document.getElementById("userArea");
 const loginBtn = document.getElementById("loginBtn");
 const memberCountSpan = document.getElementById("chat-card-member-count");
 const chatFoldBtn = document.getElementById("chat-fold-btn");
+const chatWidgetContainer = document.getElementById("chat-widget-container");
+const chatOpenBtn = document.getElementById("chat-widget-container-open-btn");
+
 ///
 // 오늘 날짜 키 (예: "2025-12-02")
+chatFoldBtn?.addEventListener("click", () => {
+  chatWidgetContainer.classList.toggle("d-none", true);
+  chatOpenBtn.classList.toggle("d-none", false);
+});
+chatOpenBtn?.addEventListener("click", () => {
+  chatWidgetContainer.classList.toggle("d-none", false);
+  chatOpenBtn.classList.toggle("d-none", true);
+});
+
 export function joinRoom(user) {
   if (!user) return;
-  console.log(`join room user id : ${user.uid}`);
   const memberRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
 
   const memberData = {
