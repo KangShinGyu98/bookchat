@@ -11,8 +11,10 @@ import {
   setDoc,
   deleteDoc,
   getDocs,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { toastShow } from "./myToast.js";
+import { toastShow, toastWarning } from "./myToast.js";
+import { attachDebouncedToggle } from "./debounceToggle.js";
 
 const params = new URLSearchParams(location.search);
 const slug = params.get("book");
@@ -25,11 +27,13 @@ const bookMetaEl = document.getElementById("bookMeta");
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("msgForm");
 const input = document.getElementById("msgInput");
-const unSubscribeBtn = document.getElementById("unSubscribeBtn");
 const userArea = document.getElementById("userArea");
 const loginBtn = document.getElementById("loginBtn");
 const msgInput = document.getElementById("msgInput");
+const autoSubscribeToggle = document.getElementById("autoSubscribeChecked");
+const subscribeBtn = document.getElementById("subscribeBtn");
 
+let subscribeState = "unsubscribed"; // 초기 상태는 구독 안함
 msgInput.addEventListener("input", () => {
   msgInput.style.height = "auto"; // 높이 초기화
   msgInput.style.height = msgInput.scrollHeight + "px"; // 내용에 맞춰 증가
@@ -49,6 +53,92 @@ async function loadBook() {
   const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000) : null;
   bookMetaEl.textContent = `${data.author || "-"} · 평점 ${data.rating ?? "-"} · 작성일 ${createdAt ? createdAt.toLocaleDateString() : "-"}`;
 }
+
+function renderSubscribeToggle(element, state) {
+  // state 는 subscribe || unsubscribe
+  if (state === "unsubscribed") {
+    element.innerHTML = `<i class="bi bi-bookmark-plus m-1"></i>구독`;
+  } else if (state === "subscribed") {
+    element.innerHTML = `<i class="bi bi-bookmark-check m-1"></i>구독 중`;
+  }
+}
+
+async function initializeSubscription() {
+  //할일 :
+  // 1. firestore 에서 users 가져와서 autoSubscribe 설정 따라서 autosubscribe 토글 html 랜더링
+  // 1.5. 무조건 books/{slug}/members 에 uid 추가
+  // 3. users subscribedBooks 안에 book slug 가 있으면 구독 취소 버튼 보이기, 없으면 구독 버튼 보이기
+  //    3-2. book slug 가 없을 때 autoSubscribe 가 true 면 구독 설정(users subscribedBooks 에 book slug 추가)
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) {
+    subscribeBtn.addEventListener("click", () => {
+      toastWarning("로그인이 필요한 서비스입니다.");
+    });
+    autoSubscribeToggle.setAttribute("disabled", true);
+    return;
+  }
+
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  const userData = userDoc.exists() ? userDoc.data() : null;
+
+  const autoSubscribe = userData?.autoSubscribe ?? false;
+  const subscribedBooks = userData?.subscribedBooks || [];
+
+  // 토글 초기 상태 설정
+  autoSubscribeToggle.checked = autoSubscribe;
+
+  //users subscribedBooks 안에 book slug 가 있으면 구독 취소 버튼 보이기, 없으면 구독 버튼 보이기
+  if (subscribedBooks.includes(slug) || autoSubscribe === true) {
+    subscribeState = "subscribed";
+    console.log("User is already subscribed to this book. : ", subscribeState);
+    renderSubscribeToggle(subscribeBtn, "subscribed");
+  } else {
+    subscribeState = "unsubscribed";
+    console.log("User is not subscribed to this book. : ", subscribeState);
+    renderSubscribeToggle(subscribeBtn, "unsubscribed");
+  }
+  attachDebouncedToggle({
+    element: subscribeBtn,
+    initialState: subscribeState,
+    getNextState: (state) => (state === "subscribed" ? "unsubscribed" : "subscribed"),
+    render: (_element, state) => {
+      subscribeState = state; // 외부 변수도 같이 업데이트 (필요 시)
+      console.log("Rendering subscription state:", state);
+      console.log("Rendering subscription state:", subscribeState);
+
+      renderSubscribeToggle(subscribeBtn, state);
+    },
+    commit: async (state) => {
+      console.log("Committing subscription state:", state);
+      await subscribeToggleCall(state);
+    },
+    delay: 500,
+  });
+
+  // books/{slug}/members 에 uid 가 있는지 확인
+  const ref = doc(db, "books", slug, "members", user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    // 문서가 없으면 새로 생성
+    await setDoc(ref, {
+      joinedAt: serverTimestamp(),
+      lastAccessAt: serverTimestamp(),
+      memberUid: user.uid,
+      subscribe: autoSubscribe === true, // autoSubscribe면 true, 아니면 false
+    });
+    return;
+  }
+
+  // 문서가 있을 때 기존 값 유지하면서 필요한 값만 업데이트
+  await updateDoc(ref, {
+    lastAccessAt: serverTimestamp(),
+    // autoSubscribe 가 true일 때만 subscribe 를 강제로 true로 바꾸고
+    // autoSubscribe가 false면 기존 값(data.subscribe)을 유지
+    subscribe: autoSubscribe ? true : userData.subscribe,
+  });
+}
+// 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대
+
 function renderMessages(snapshot) {
   messagesEl.innerHTML = "";
   snapshot.forEach((docSnap) => {
@@ -69,7 +159,6 @@ function renderMessages(snapshot) {
 function subscribeMessages() {
   if (unsubscribeMsgs) unsubscribeMsgs();
   const q = query(collection(db, "books", slug, "messages"), orderBy("createdAt"));
-  console.log("Subscribing to messages with query:", q);
   unsubscribeMsgs = onSnapshot(q, (snap) => renderMessages(snap));
 }
 
@@ -77,7 +166,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
   if (!isUser) {
-    alert("로그인 후 작성 가능합니다.");
+    toastWarning("로그인이 필요한 서비스입니다.");
     return;
   }
   const text = input.value.trim();
@@ -97,26 +186,6 @@ form.addEventListener("submit", async (e) => {
   msgInput.style.height = "auto";
   msgInput.style.height = msgInput.scrollHeight + "px";
 });
-
-unSubscribeBtn.addEventListener("click", async () => {
-  const user = auth.currentUser && !auth.currentUser.isAnonymous;
-  if (!user) {
-    alert("로그인 필요");
-    return;
-  }
-  await deleteDoc(doc(db, "books", slug, "members", user.uid));
-  location.href = "index.html";
-});
-
-onUser((user) => {
-  if (user) {
-    // --todo 구독 or 구독 아닌지에 따라서 설정
-  } else {
-  }
-});
-
-loadBook();
-subscribeMessages();
 
 // ===== 질문 캐루셀 =====
 let questions = [];
@@ -208,3 +277,35 @@ function renderQuestionCard() {
 }
 
 // loadQuestions();
+
+async function subscribeToggleCall(state) {
+  const user = auth.currentUser;
+  const userDocRef = doc(db, "users", user.uid);
+  const userDoc = await getDoc(userDocRef);
+  const userData = userDoc.exists() ? userDoc.data() : null;
+  const subscribedBooks = userData?.subscribedBooks || [];
+  if (state === "unsubscribed") {
+    // subscribedBooks 에서 현재 책 slug 제거
+    const index = subscribedBooks.indexOf(slug);
+    if (index > -1) {
+      subscribedBooks.splice(index, 1);
+    }
+    await setDoc(userDocRef, { subscribedBooks: subscribedBooks }, { merge: true });
+    toastShow("구독이 취소되었습니다.");
+  } else if (state === "subscribed") {
+    // subscribedBooks 에서 현재 책 slug 추가
+    if (subscribedBooks.includes(slug)) {
+      // 이미 구독 중인 경우 아무 작업도 수행하지 않음
+      toastShow("이미 구독 중입니다.");
+    } else {
+      subscribedBooks.push(slug);
+      await setDoc(userDocRef, { subscribedBooks: subscribedBooks }, { merge: true });
+      toastShow("구독이 설정되었습니다.");
+    }
+  }
+  // UI 업데이트
+  renderSubscribeToggle(subscribeBtn, state);
+}
+loadBook();
+subscribeMessages();
+onUser(() => initializeSubscription());

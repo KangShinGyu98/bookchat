@@ -116,8 +116,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   loginOpenBtn?.addEventListener("click", async () => {
     const user = auth.currentUser && !auth.currentUser.isAnonymous;
     if (user) {
-      await logout();
-      toastShow("성공적으로 로그아웃 되었습니다.");
+      await logout()
+        .then(() => {
+          toastShow("성공적으로 로그아웃 되었습니다.");
+          location.reload();
+        })
+        .catch((err) => {
+          toastWarning("로그아웃에 실패하였습니다.");
+          console.error("로그아웃 실패:", err);
+        });
     } else {
       loginModal?.show();
     }
@@ -148,13 +155,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   onUser(async (user) => {
     if (!user) {
-
       signInAnonymously(auth).catch((error) => {
         console.error("Anonymous sign-in error", error);
       });
       return;
     } else if (user.isAnonymous) {
-
       return;
     }
     try {
