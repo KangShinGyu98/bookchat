@@ -79,24 +79,47 @@ async function initializeSubscription() {
     autoSubscribeToggle.setAttribute("disabled", true);
     return;
   }
-
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const userData = userDoc.exists() ? userDoc.data() : null;
 
   const autoSubscribe = userData?.autoSubscribe ?? false;
   const subscribedBooks = userData?.subscribedBooks || [];
+  // books/{slug}/members 에 uid 가 있는지 확인
+  const ref = doc(db, "books", slug, "members", user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    // 문서가 없으면(book 내 userId 가 없으면) 새로 생성
+    await setDoc(ref, {
+      joinedAt: serverTimestamp(),
+      lastAccessAt: serverTimestamp(),
+      memberUid: user.uid,
+      subscribe: autoSubscribe === true, // autoSubscribe면 true, 아니면 false
+    });
+
+    if (autoSubscribe) {
+      subscribeState = "subscribed";
+      // --todo : users subscribedBooks 에 book slug 추가
+    } else {
+      subscribeState = "unsubscribed";
+    }
+  } else {
+    //문서가 있을 때
+    // 문서가 있을 때 기존 값 유지하면서 필요한 값만 업데이트
+    await updateDoc(ref, {
+      lastAccessAt: serverTimestamp(),
+      // 기존에 값이 있으면 autoSubscribe 가 true 더라도 유지
+    });
+    // 구독 상태 설정
+    subscribeState = snap.data().subscribe === true ? "subscribed" : "unsubscribed";
+  }
+  console.log("Initial subscribeState:", subscribeState);
+  renderSubscribeToggle(subscribeBtn, subscribeState);
 
   // 토글 초기 상태 설정
   autoSubscribeToggle.checked = autoSubscribe;
 
   //users subscribedBooks 안에 book slug 가 있으면 구독 취소 버튼 보이기, 없으면 구독 버튼 보이기
-  if (subscribedBooks.includes(slug)) {
-    subscribeState = "subscribed";
-    renderSubscribeToggle(subscribeBtn, "subscribed");
-  } else {
-    subscribeState = "unsubscribed";
-    renderSubscribeToggle(subscribeBtn, "unsubscribed");
-  }
+
   attachDebouncedToggle({
     element: subscribeBtn,
     initialState: subscribeState,
@@ -106,34 +129,19 @@ async function initializeSubscription() {
       renderSubscribeToggle(subscribeBtn, state);
     },
     commit: async (state) => {
-      console.log("Committing subscription state:", state);
       await subscribeToggleCall(state, slug);
     },
     delay: 500,
   });
-
-  // books/{slug}/members 에 uid 가 있는지 확인
-  const ref = doc(db, "books", slug, "members", user.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    // 문서가 없으면 새로 생성
-    await setDoc(ref, {
-      joinedAt: serverTimestamp(),
-      lastAccessAt: serverTimestamp(),
-      memberUid: user.uid,
-      subscribe: autoSubscribe === true, // autoSubscribe면 true, 아니면 false
-    });
-    return;
-  }
-
-  // 문서가 있을 때 기존 값 유지하면서 필요한 값만 업데이트
-  await updateDoc(ref, {
-    lastAccessAt: serverTimestamp(),
-    // autoSubscribe 가 true일 때만 subscribe 를 강제로 true로 바꾸고
-    // autoSubscribe가 false면 기존 값(data.subscribe)을 유지
-  });
 }
 // 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대
+
+
+
+
+
+
+
 
 function renderMessages(snapshot) {
   messagesEl.innerHTML = "";
@@ -275,7 +283,7 @@ function renderQuestionCard() {
 // loadQuestions();
 
 async function subscribeToggleCall(state, slug) {
-  console.log("subscribeToggleCall called with state:", state, "slug:", slug);
+  "subscribeToggleCall called with state:", state, "slug:", slug;
   const user = auth.currentUser;
   if (!user) {
     toastShow("로그인 후 이용해주세요.");
@@ -287,7 +295,7 @@ async function subscribeToggleCall(state, slug) {
   const subscribedBooks = userData?.subscribedBooks || [];
   const bookMemberRef = doc(db, "books", slug, "members", user.uid);
   // books/{slug}/members 에도 subscribe 필드 업데이트
-  console.log("subscribeToggleCall state:", state);
+  "subscribeToggleCall state:", state;
 
   if (state === "unsubscribed") {
     // subscribedBooks 에서 현재 책 slug 제거

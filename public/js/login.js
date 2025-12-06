@@ -2,6 +2,7 @@ import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { toastShow, toastWarning } from "./myToast.js";
+import { signupWithEmailPassword, loginWithEmailPassword } from "./app.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const loginModalMarkup = `
@@ -94,8 +95,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
     const nicknameInput = document.getElementById("nickname");
     const nickname = nicknameInput?.value?.trim();
-    const user = auth.currentUser && !auth.currentUser.isAnonymous;
-    if (!user) {
+    const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
+    const user = auth.currentUser;
+    if (!isUser) {
       toastShow("로그인이 필요합니다.");
       return;
     }
@@ -114,8 +116,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
   });
   loginOpenBtn?.addEventListener("click", async () => {
-    const user = auth.currentUser && !auth.currentUser.isAnonymous;
-    if (user) {
+    const isUser = auth.currentisUser && !auth.currentUser.isAnonymous;
+    if (isUser) {
       await logout()
         .then(() => {
           toastShow("성공적으로 로그아웃 되었습니다.");
@@ -186,3 +188,28 @@ export function showLoginModal() {
   if (el && window.bootstrap) loginModal = new bootstrap.Modal(el);
   loginModal.show();
 }
+
+const testUserLoginBtn = document.getElementById("testUserLoginBtn") ?? null;
+testUserLoginBtn?.addEventListener("click", async () => {
+  // const result = await signupWithEmailPassword("testuser@example.com", "testpassword");
+
+  // const result = await signInWithPopup(auth, googleProvider);
+  // const user = result.user; // firebase user
+
+  // const userRef = doc(db, "users", user.uid);
+  // const snap = await getDoc(userRef);
+
+  // if (!snap.exists()) {
+  //   // 여기서가 “자동 회원가입” 영역
+  //   await setDoc(userRef, {
+  //     uid: user.uid,
+  //     email: user.email,
+  //     displayName: user.displayName,
+  //     photoURL: user.photoURL,
+  //     provider: "google",
+  //     createdAt: new Date(),
+  //   });
+  // }
+  loginWithEmailPassword("testuser@example.com", "testpassword");
+  toastShow("테스트 유저로 회원가입 및 로그인 되었습니다.");
+});

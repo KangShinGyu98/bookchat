@@ -31,10 +31,11 @@ const logger = require("firebase-functions/logger");
 const { defineString } = require("firebase-functions/params");
 const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const functions = require("firebase-functions");
 const fetch = require("node-fetch"); // Node 18+면 글로벌 fetch 가능
-const admin = require("firebase-admin");
 
+const admin = require("firebase-admin");
 setGlobalOptions({ maxInstances: 10 });
 if (!admin.apps.length) initializeApp();
 const db = getFirestore(admin.app(), "bookchat-database");
@@ -118,4 +119,35 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
     .set({ subscribedBooks: FieldValue.arrayUnion(bookRef.id) }, { merge: true });
 
   return res.json({ ok: true, id: bookRef.id });
+});
+
+exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (event) => {
+  const snap = event.data;
+  const ctx = event;
+  const bookId = ctx.params.bookId;
+  const message = snap.data();
+
+  // 1. 이 책을 구독하는 유저 가져오기
+  const subscribers = await db.collection("users").where("subscribedBooks", "array-contains", bookId).get();
+
+  // 2. RTDB에서 online인지 확인
+  const presenceSnap = await rtdb.ref(`presence/${bookId}/users`).get();
+  const presenceData = presenceSnap.val() || {};
+
+  const onlineUsers = Object.entries(presenceData)
+    .filter(([uid, info]) => info.state === "online")
+    .map(([uid]) => uid);
+  const notifyTargets = subscribers.docs.filter((doc) => !onlineUsers.includes(doc.id));
+
+  // 3. 알림 보관 저장 or FCM 전송
+  const writePromises = notifyTargets.map((user) =>
+    db.collection("users").doc(user.id).collection("notifications").add({
+      bookId,
+      msgPreview: message.text,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      read: false,
+    })
+  );
+
+  await Promise.all(writePromises);
 });

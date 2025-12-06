@@ -52,7 +52,6 @@ export async function logout() {
   const user = auth.currentUser;
   try {
     if (user) {
-
       const presenceRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
 
       await remove(presenceRef);
@@ -81,7 +80,6 @@ export async function loginWithGoogle() {
       // 계정이 이미 다른 provider로 만들어져 있을 때 등 예외 처리
       // 여기서 credential-already-in-use 발생 가능
       if (err.code === "auth/credential-already-in-use") {
-
         // ① 에러에서 credential 추출
         const cred = GoogleAuthProvider.credentialFromError(err);
 
@@ -89,7 +87,6 @@ export async function loginWithGoogle() {
         result = await signInWithCredential(auth, cred);
         const googleUser = result.user;
         const afterUid = googleUser.uid; // 기존에 있던 Google UID
-
 
         // ③ 익명 UID → Google UID로 데이터 merge / 정리
         await mergeAnonymousUserData(beforeUid, afterUid);
@@ -119,6 +116,7 @@ export async function loginWithGoogle() {
       photoURL: user.photoURL,
       provider: "google",
       createdAt: new Date(),
+      autosubautoSubscribe: true,
     });
   }
 }
@@ -147,8 +145,15 @@ export async function mergeAnonymousUserData(anonUid, googleUid) {
     updates[`mainchatroom/presence/users/${anonUid}`] = null; // 익명 노드 삭제
 
     await update(ref(rtdb), updates);
-
   } catch (err) {
     console.error("mergeAnonymousUserData 에러:", err);
   }
+}
+
+export async function loginWithEmailPassword(email, password) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function signupWithEmailPassword(email, password) {
+  return createUserWithEmailAndPassword(auth, email, password);
 }

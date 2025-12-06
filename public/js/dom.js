@@ -191,8 +191,8 @@ naverQueryInput?.addEventListener("keydown", (e) => {
 });
 
 newPostOpenBtn?.addEventListener("click", () => {
-  const user = auth.currentUser && !auth.currentUser.isAnonymous;
-  if (user) {
+  const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
+  if (isUser) {
     newPostModal?.show();
   } else {
     toastShow("로그인이 필요합니다.");
