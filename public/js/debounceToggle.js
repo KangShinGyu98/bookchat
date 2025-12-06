@@ -21,7 +21,6 @@ export function attachDebouncedToggle({ element, initialState, getNextState, ren
       try {
         await commit(state);
       } catch (err) {
-        console.error(err);
         // 필요하면 여기서 롤백도 가능 (예: render(element, prevState))
       }
     }, delay);

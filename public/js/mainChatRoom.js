@@ -12,7 +12,15 @@ import {
   deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow } from "./myToast.js";
-import { getDatabase, ref, onValue, runTransaction, onDisconnect, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  runTransaction,
+  onDisconnect,
+  set,
+  serverTimestamp as rtdbServerTimestamp,
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
 const params = new URLSearchParams(location.search);
 const bookTitleEl = document.getElementById("bookTitle");
@@ -47,7 +55,7 @@ export function joinRoom(user) {
     displayName: user.displayName || "익명",
     photoURL: user.photoURL || null,
     isAnonymous: !!user.isAnonymous,
-    joinedAt: serverTimestamp(),
+    joinedAt: rtdbServerTimestamp(),
   };
 
   // 접속 중일 때 멤버 정보 기록
