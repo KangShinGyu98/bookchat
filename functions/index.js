@@ -25,28 +25,37 @@
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
-const { setGlobalOptions } = require("firebase-functions");
-const { onRequest } = require("firebase-functions/https");
+// 🔹 Firebase Functions v2
+const { setGlobalOptions } = require("firebase-functions/v2");
+const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const { defineString } = require("firebase-functions/params");
-const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
+
+// 🔹 Firebase Admin SDK
 const { initializeApp } = require("firebase-admin/app");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const functions = require("firebase-functions");
-const fetch = require("node-fetch"); // Node 18+면 글로벌 fetch 가능
-
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
+const { getDatabase } = require("firebase-admin/database");
 const admin = require("firebase-admin");
+
+// 🔹 Functions 공통 옵션
 setGlobalOptions({ maxInstances: 10 });
-if (!admin.apps.length) initializeApp();
-const db = getFirestore(admin.app(), "bookchat-database");
 
-// const f = getFirestore();
-// const t = Timestamp.now();
-// const fv = FieldValue.delete();
+// 🔹 Admin 초기화 (한 번만)
+const app = initializeApp();
 
+// 🔹 Firestore: 멀티 DB 중 "bookchat-database" 사용
+const db = getFirestore(app, "bookchat-database");
+
+// 🔹 Realtime Database
+const rtdb = getDatabase(app);
+
+// 🔹 환경 변수 (Firebase Functions params)
 const client_id = defineString("NAVER_CLIENT_ID");
 const client_secret = defineString("NAVER_CLIENT_SECRET");
-//
+
+// 🔹 (선택) v1 스타일 함수가 아직 남아있다면 사용
+const functions = require("firebase-functions");
 
 exports.searchBooks = functions.https.onRequest(async (req, res) => {
   const allowed = ["http://127.0.0.1:5005", "https://book-chat-da2d6.web.app"];
@@ -122,6 +131,7 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
 });
 
 exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (event) => {
+
   const snap = event.data;
   const ctx = event;
   const bookId = ctx.params.bookId;
@@ -144,7 +154,7 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
     db.collection("users").doc(user.id).collection("notifications").add({
       bookId,
       msgPreview: message.text,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: Timestamp.now(),
       read: false,
     })
   );

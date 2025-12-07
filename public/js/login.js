@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
   });
   loginOpenBtn?.addEventListener("click", async () => {
-    const isUser = auth.currentisUser && !auth.currentUser.isAnonymous;
+    const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
     if (isUser) {
       await logout()
         .then(() => {
@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (loginOpenBtn) {
       loginOpenBtn.innerHTML =
         user && !user.isAnonymous ? `<i class="bi bi-box-arrow-right"></i> 로그아웃` : `<i class="bi bi-box-arrow-in-right"></i> 로그인`;
-      if (!user) nicknameContainer.textContent = "";
+      if (!user || user.isAnonymous) nicknameContainer.textContent = "";
     }
   });
 

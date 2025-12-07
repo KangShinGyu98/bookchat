@@ -24,6 +24,7 @@ if (!slug) {
   alert("정상적인 접근이 아닙니다.");
   location.href = "index.html";
 }
+const textarea = document.getElementById("msgInput");
 const bookTitleEl = document.getElementById("bookTitle");
 const bookMetaEl = document.getElementById("bookMeta");
 const messagesEl = document.getElementById("messages");
@@ -66,11 +67,6 @@ function renderSubscribeToggle(element, state) {
 }
 
 async function initializeSubscription() {
-  //할일 :
-  // 1. firestore 에서 users 가져와서 autoSubscribe 설정 따라서 autosubscribe 토글 html 랜더링
-  // 1.5. 무조건 books/{slug}/members 에 uid 추가
-  // 3. users subscribedBooks 안에 book slug 가 있으면 구독 취소 버튼 보이기, 없으면 구독 버튼 보이기
-  //    3-2. book slug 가 없을 때 autoSubscribe 가 true 면 구독 설정(users subscribedBooks 에 book slug 추가)
   const user = auth.currentUser;
   if (!user || user.isAnonymous) {
     subscribeBtn.addEventListener("click", () => {
@@ -79,17 +75,21 @@ async function initializeSubscription() {
     autoSubscribeToggle.setAttribute("disabled", true);
     return;
   }
+  // 토글 초기 상태 설정
+
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const userData = userDoc.exists() ? userDoc.data() : null;
 
   const autoSubscribe = userData?.autoSubscribe ?? false;
   const subscribedBooks = userData?.subscribedBooks || [];
+  autoSubscribeToggle.checked = autoSubscribe;
+
   // books/{slug}/members 에 uid 가 있는지 확인
-  const ref = doc(db, "books", slug, "members", user.uid);
-  const snap = await getDoc(ref);
+  const bookRef = doc(db, "books", slug, "members", user.uid);
+  const snap = await getDoc(bookRef);
   if (!snap.exists()) {
     // 문서가 없으면(book 내 userId 가 없으면) 새로 생성
-    await setDoc(ref, {
+    await setDoc(bookRef, {
       joinedAt: serverTimestamp(),
       lastAccessAt: serverTimestamp(),
       memberUid: user.uid,
@@ -105,18 +105,23 @@ async function initializeSubscription() {
   } else {
     //문서가 있을 때
     // 문서가 있을 때 기존 값 유지하면서 필요한 값만 업데이트
-    await updateDoc(ref, {
+    await updateDoc(bookRef, {
       lastAccessAt: serverTimestamp(),
       // 기존에 값이 있으면 autoSubscribe 가 true 더라도 유지
     });
     // 구독 상태 설정
     subscribeState = snap.data().subscribe === true ? "subscribed" : "unsubscribed";
   }
+  // 만약 subscribeState 가 subscribed 면 users subscribedBooks 에 book slug 가 있는지 확인, 없으면 추가
+  if (subscribeState === "subscribed" && !subscribedBooks.includes(slug)) {
+    subscribedBooks.push(slug);
+    await updateDoc(doc(db, "users", user.uid), {
+      subscribedBooks: arrayUnion(slug),
+    });
+  }
+
   console.log("Initial subscribeState:", subscribeState);
   renderSubscribeToggle(subscribeBtn, subscribeState);
-
-  // 토글 초기 상태 설정
-  autoSubscribeToggle.checked = autoSubscribe;
 
   //users subscribedBooks 안에 book slug 가 있으면 구독 취소 버튼 보이기, 없으면 구독 버튼 보이기
 
@@ -135,13 +140,6 @@ async function initializeSubscription() {
   });
 }
 // 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대
-
-
-
-
-
-
-
 
 function renderMessages(snapshot) {
   messagesEl.innerHTML = "";
@@ -165,6 +163,14 @@ function subscribeMessages() {
   const q = query(collection(db, "books", slug, "messages"), orderBy("createdAt"));
   unsubscribeMsgs = onSnapshot(q, (snap) => renderMessages(snap));
 }
+
+textarea.addEventListener("keydown", function (e) {
+  // Shift+Enter 는 줄바꿈 허용하고, 그냥 Enter는 submit
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault(); // 기본 줄바꿈 방지
+    form.requestSubmit(); // submit 버튼 트리거 (HTML5 권장)
+  }
+});
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -283,7 +289,6 @@ function renderQuestionCard() {
 // loadQuestions();
 
 async function subscribeToggleCall(state, slug) {
-  "subscribeToggleCall called with state:", state, "slug:", slug;
   const user = auth.currentUser;
   if (!user) {
     toastShow("로그인 후 이용해주세요.");
@@ -295,7 +300,6 @@ async function subscribeToggleCall(state, slug) {
   const subscribedBooks = userData?.subscribedBooks || [];
   const bookMemberRef = doc(db, "books", slug, "members", user.uid);
   // books/{slug}/members 에도 subscribe 필드 업데이트
-  "subscribeToggleCall state:", state;
 
   if (state === "unsubscribed") {
     // subscribedBooks 에서 현재 책 slug 제거
