@@ -45,7 +45,12 @@ setGlobalOptions({ maxInstances: 10 });
 const app = initializeApp();
 
 // 🔹 Firestore: 멀티 DB 중 "bookchat-database" 사용
-const db = getFirestore(app, "bookchat-database");
+const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+
+// 에뮬레이터일 땐 기본 DB, 배포 환경일 땐 멀티 DB (정말 필요하다면)
+const db = isEmulator
+  ? getFirestore() // 기본 DB (에뮬레이터 호환)
+  : getFirestore(app, "bookchat-database");
 
 // 🔹 Realtime Database
 const rtdb = getDatabase(app);
@@ -131,6 +136,7 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
 });
 
 exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (event) => {
+  logger.debug("onMessage 함수가 호출되었습니다.", { params: event.params, data: event.data.data() });
 
   const snap = event.data;
   const ctx = event;
@@ -139,6 +145,11 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
 
   // 1. 이 책을 구독하는 유저 가져오기
   const subscribers = await db.collection("users").where("subscribedBooks", "array-contains", bookId).get();
+  logger.debug("구독자 수:", subscribers.size);
+  if (subscribers.empty) {
+    logger.debug("구독자가 없습니다. 종료합니다.");
+    return;
+  }
 
   // 2. RTDB에서 online인지 확인
   const presenceSnap = await rtdb.ref(`presence/${bookId}/users`).get();
@@ -147,7 +158,9 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
   const onlineUsers = Object.entries(presenceData)
     .filter(([uid, info]) => info.state === "online")
     .map(([uid]) => uid);
+  logger.debug("온라인 사용자 수:", onlineUsers.length);
   const notifyTargets = subscribers.docs.filter((doc) => !onlineUsers.includes(doc.id));
+  logger.debug("알림 대상자 수:", notifyTargets.length);
 
   // 3. 알림 보관 저장 or FCM 전송
   const writePromises = notifyTargets.map((user) =>
@@ -159,5 +172,6 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
     })
   );
 
+  logger.debug("알림 저장 완료");
   await Promise.all(writePromises);
 });

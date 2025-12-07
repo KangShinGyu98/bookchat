@@ -1,3 +1,5 @@
+import { collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { db } from "./app.js";
 // data fetching 관련 함수들
 const USE_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
 const LOCAL_JSON_PATH = "./assets/data/books.json";
@@ -11,10 +13,31 @@ import algoliasearch from "https://cdn.jsdelivr.net/npm/algoliasearch@4.24.0/dis
 export async function getBooks(searchCondition) {
   const field = normalizeOrder(searchCondition.orderBy);
   const offsetIndex = Math.max(searchCondition.pageIndex - 1, 0) * searchCondition.pageSize;
-  // if (USE_LOCAL) {
-  //   return getLocalPage(offsetIndex, searchCondition.pageSize, field);
-  // }
+  if (USE_LOCAL) {
+    // return getLocalPage(offsetIndex, searchCondition.pageSize, field); 과거 json 데이터
+    return getEmulatorPage(searchCondition);
+  }
   return getFirebasePage(searchCondition);
+}
+
+async function getEmulatorPage(searchCondition) {
+  // searchCondition 은 받아두지만, 여기서는 정렬/페이징 안 쓰고 전체 반환만 함
+  const colRef = collection(db, "books");
+  console.log("Emulator mode: loading all books from Firestore : ", db);
+  const snap = await getDocs(colRef);
+
+  const hits = snap.docs.map((doc) => ({
+    objectID: doc.id, // Algolia 호환용
+    ...doc.data(),
+  }));
+  console.log("Emulator mode: returning all books", hits);
+  return {
+    hits, // 전체 책 데이터 배열
+    page: 0, // 항상 0페이지로 고정
+    nbPages: 1, // 페이지 1개라고 가정
+    nbHits: hits.length, // 전체 개수
+    hitsPerPage: hits.length, // 한 페이지에 전부 다
+  };
 }
 
 function normalizeOrder(orderBy) {

@@ -11,6 +11,7 @@ import {
   sendPasswordResetEmail,
   linkWithPopup,
   signInWithCredential,
+  connectAuthEmulator,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   doc,
@@ -24,8 +25,9 @@ import {
   setDoc,
   deleteDoc,
   getFirestore,
+  connectFirestoreEmulator,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { getDatabase, ref, get, update, remove, connectDatabaseEmulator } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
 
 export const firebaseConfig = {
@@ -40,10 +42,18 @@ export const firebaseConfig = {
 //인증정보
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, "bookchat-database");
+
 export const rtdb = getDatabase();
 const googleProvider = new GoogleAuthProvider();
+const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 
+// 로컬에서만 에뮬레이터 사용
+export const db = isLocalhost ? getFirestore(app) : getFirestore(app, "bookchat-database");
+if (isLocalhost) {
+  connectFirestoreEmulator(db, "127.0.0.1", 8080); // Firestore 에뮬레이터 포트
+  connectDatabaseEmulator(rtdb, "127.0.0.1", 9000); // RTDB 에뮬레이터 포트 (쓸 거면)
+  connectAuthEmulator(auth, "http://127.0.0.1:9099");
+}
 //래핑 함수
 export function onUser(cb) {
   return onAuthStateChanged(auth, cb);
@@ -116,7 +126,7 @@ export async function loginWithGoogle() {
       photoURL: user.photoURL,
       provider: "google",
       createdAt: new Date(),
-      autosubautoSubscribe: true,
+      autoSubscribe: true,
     });
   }
 }

@@ -109,6 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setDoc(profileRef, { nickname }, { merge: true })
       .then(() => {
         nicknameModal?.hide();
+        nicknameContainer.textContent = `${nickname}`;
         toastShow("성공적으로 별명이 설정되었습니다.");
       })
       .catch((err) => {
@@ -191,25 +192,25 @@ export function showLoginModal() {
 
 const testUserLoginBtn = document.getElementById("testUserLoginBtn") ?? null;
 testUserLoginBtn?.addEventListener("click", async () => {
-  // const result = await signupWithEmailPassword("testuser@example.com", "testpassword");
+  const result = await signupWithEmailPassword("testuser@example.com", "testpassword");
+  const user = result.user; // firebase user
 
-  // const result = await signInWithPopup(auth, googleProvider);
-  // const user = result.user; // firebase user
+  const userRef = doc(db, "users", user.uid);
+  const snap = await getDoc(userRef);
 
-  // const userRef = doc(db, "users", user.uid);
-  // const snap = await getDoc(userRef);
-
-  // if (!snap.exists()) {
-  //   // 여기서가 “자동 회원가입” 영역
-  //   await setDoc(userRef, {
-  //     uid: user.uid,
-  //     email: user.email,
-  //     displayName: user.displayName,
-  //     photoURL: user.photoURL,
-  //     provider: "google",
-  //     createdAt: new Date(),
-  //   });
-  // }
+  if (!snap.exists()) {
+    // 여기서가 “자동 회원가입” 영역
+    await setDoc(userRef, {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      provider: "google",
+      createdAt: new Date(),
+      autoSubscribe: true,
+    });
+  }
   loginWithEmailPassword("testuser@example.com", "testpassword");
   toastShow("테스트 유저로 회원가입 및 로그인 되었습니다.");
+  
 });
