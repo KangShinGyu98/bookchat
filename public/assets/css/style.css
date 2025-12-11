@@ -6,7 +6,7 @@
   --bs-info: #c9b59c;
   --bs-gray: #bfc4c8;
   --bs-secondary-gray: #555;
-  --bs-danger: #a89a91;
+  --bs-notification: #cc561e;
   --focus-ring-color: var(--bs-info);
   --focus-ring-shadow: 0 0 0 0.25rem rgba(201, 181, 156, 0.25);
   --focus-ring-primary: var(--bs-info);
@@ -30,6 +30,9 @@
 }
 .bg-gray {
   background-color: var(--bs-gray) !important;
+}
+.bg-notification {
+  background-color: var(--bs-notification) !important;
 }
 .text-xs {
   font-size: 0.75rem; /* 12px */
@@ -246,13 +249,42 @@ a:hover {
   width: 50%;
   margin: 0 auto; /* 가운데 정렬 유지 */
 }
-
+.dropdown-menu {
+  width: 360px;
+  height: 450px;
+  overflow-y: scroll;
+}
+.dropdown-text {
+  white-space: normal;
+  width: 100%;
+}
+.dropdown-item.read {
+  background-color: var(--bs-success);
+}
+.dropdown-item:hover {
+  background-color: var(--bs-secondary);
+}
+.notification-text-ellipsis {
+  text-align: left;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.notification-text-online-ellipsis {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .carousel-item:nth-child(odd) {
   background-color: var(--bs-secondary);
 }
 .carousel-item:nth-child(even) {
   background-color: var(--bs-success);
 }
+
 /* carousel 컨트롤 버튼 색상 */
 .carousel-control-prev,
 .carousel-control-next,
@@ -296,4 +328,11 @@ textarea {
 .form-switch .form-check-input:checked {
   --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23c9b59c'/%3e%3c/svg%3e");
   background-color: white;
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80%;
 }

@@ -325,6 +325,25 @@ async function subscribeToggleCall(state, slug) {
   // UI 업데이트
   renderSubscribeToggle(subscribeBtn, state);
 }
+
+async function readNotifications(bookId) {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return;
+  const notiRef = collection(db, "users", user.uid, "notifications");
+  const q = query(notiRef, where("bookId", "==", bookId), where("read", "==", false));
+  const notiSnap = await getDocs(q);
+  const batch = writeBatch(db);
+
+  notiSnap.forEach((docSnap) => {
+    batch.update(docSnap.ref, { read: true });
+    // doc(notiRef, docSnap.id) 도 되지만, docSnap.ref 가 더 간단
+  });
+
+  await batch.commit();
+}
+
 loadBook();
 subscribeMessages();
 onUser(() => initializeSubscription());
+// onUser(() => loadQuestions());
+onUser(() => readNotifications(slug));

@@ -136,8 +136,6 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
 });
 
 exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (event) => {
-  logger.debug("onMessage 함수가 호출되었습니다.", { params: event.params, data: event.data.data() });
-
   const snap = event.data;
   const ctx = event;
   const bookId = ctx.params.bookId;
@@ -145,9 +143,7 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
 
   // 1. 이 책을 구독하는 유저 가져오기
   const subscribers = await db.collection("users").where("subscribedBooks", "array-contains", bookId).get();
-  logger.debug("구독자 수:", subscribers.size);
   if (subscribers.empty) {
-    logger.debug("구독자가 없습니다. 종료합니다.");
     return;
   }
 
@@ -158,20 +154,45 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
   const onlineUsers = Object.entries(presenceData)
     .filter(([uid, info]) => info.state === "online")
     .map(([uid]) => uid);
-  logger.debug("온라인 사용자 수:", onlineUsers.length);
   const notifyTargets = subscribers.docs.filter((doc) => !onlineUsers.includes(doc.id));
-  logger.debug("알림 대상자 수:", notifyTargets.length);
 
   // 3. 알림 보관 저장 or FCM 전송
-  const writePromises = notifyTargets.map((user) =>
-    db.collection("users").doc(user.id).collection("notifications").add({
+  const writePromises = notifyTargets.map(async (user) => {
+    const notificationsRef = db.collection("users").doc(user.id).collection("notifications");
+
+    // 이 유저에게 이 책(bookId)에 대한 "읽지 않은 알림"이 있는지 확인
+    const existingSnap = await notificationsRef
+      .where("bookId", "==", bookId)
+      .where("read", "==", false)
+      // .orderBy("createdAt", "desc") // 필요하면 사용 (인덱스 필요)
+      .limit(1)
+      .get();
+
+    const bookDoc = await db.collection("books").doc(bookId).get();
+    const bookData = bookDoc.data() || {};
+
+    const payload = {
       bookId,
+      bookTitle: bookData.title || "제목 없음",
+      bookImageUrl: bookData.imageUrl || "",
+      senderId: message.senderUid,
+      senderName: message.senderName || "익명",
       msgPreview: message.text,
       createdAt: Timestamp.now(),
-      read: false,
-    })
-  );
+    };
 
-  logger.debug("알림 저장 완료");
+    if (existingSnap.empty) {
+      // 3-1. 읽지 않은 알림이 없다 → 새 알림 생성
+      await notificationsRef.add({
+        ...payload,
+        read: false,
+      });
+    } else {
+      // 3-2. 이미 읽지 않은 알림이 있다 → 그 알림만 내용/시간 업데이트
+      const docRef = existingSnap.docs[0].ref;
+      await docRef.update(payload);
+    }
+  });
+
   await Promise.all(writePromises);
 });

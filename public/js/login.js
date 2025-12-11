@@ -1,9 +1,18 @@
 import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, updateDoc, getDocs, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { toastShow, toastWarning } from "./myToast.js";
 import { signupWithEmailPassword, loginWithEmailPassword } from "./app.js";
-
+const defaultCovers = [
+  "andrei-castanha-6JAUfus77_E-unsplash.jpg",
+  "andrei-castanha-zSbiRO6qBDY-unsplash.jpg",
+  "fast-ink-GqY_AU1QOaE-unsplash.jpg",
+  "morgan-marinoni-QPow-FC0gwQ-unsplash.jpg",
+  "muhammad-afandi-_1_dl3yiLLc-unsplash.jpg",
+  "ogie-vJG0I2woCmg-unsplash.jpg",
+  "pixeliota-N1Rfk1JaoNM-unsplash.jpg",
+  "thingsneverchange-icmAVo67uUY-unsplash.jpg",
+];
 document.addEventListener("DOMContentLoaded", async () => {
   const loginModalMarkup = `
     <!-- 로그인 모달 -->
@@ -180,8 +189,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("프로필 로드 실패:", err);
     }
   });
+  onUser(() => initializeNotification());
 });
-
+const notificationToggle = document.getElementById("notificationToggle") ?? null;
+const notificationContainer = document.getElementById("notification-container") ?? null;
+const notificationMenu = document.getElementById("notification-menu") ?? null;
+const notificationBadge = document.getElementById("notificationBadge") ?? null;
 let loginModal;
 export function showLoginModal() {
   // 모달 마크업 삽입, 요소 선택
@@ -208,9 +221,165 @@ testUserLoginBtn?.addEventListener("click", async () => {
       provider: "google",
       createdAt: new Date(),
       autoSubscribe: true,
+      notificationSetting: true,
     });
   }
   loginWithEmailPassword("testuser@example.com", "testpassword");
   toastShow("테스트 유저로 회원가입 및 로그인 되었습니다.");
-  
 });
+function getTimeDiff(createdAt) {
+  const now = new Date();
+  const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+
+  const diffMs = now - date;
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMinutes < 1) return "방금 전";
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+  if (diffHours < 24) return `${diffHours}시간 전`;
+  return `${diffDays}일 전`;
+}
+async function onNotificationClicked(noti) {
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    // 이미 읽음이면 굳이 updateDoc 안 해도 됨
+    if (!noti.read) {
+      await updateDoc(doc(db, "users", user.uid, "notifications", noti.id), { read: true });
+    }
+
+    // 채팅 페이지로 이동
+    location.href = `http://127.0.0.1:5005/chat.html?book=${noti.bookId}`;
+  } catch (err) {
+    console.error("알림 클릭 처리 중 오류:", err);
+  }
+}
+async function renderNotifications(notifications) {
+  // 이제 notifications 안에는 이런 형태의 데이터가 존재함:
+  // {
+  //   id: "xxxxx",
+  //   bookId: "BWLyZRAKRz5eHeQ1QvbM",
+  //   msgPreview: "테스트 메시지 22",
+  //   createdAt: ...,
+  //   read: false,
+  //   bookImage: "https://....jpg"   <-- books/{bookId} 의 imageUrl
+  // }
+  // console.log(notifications);
+
+  // 스피너 제거
+  if (notificationContainer) notificationContainer.classList.add("d-none"); // 미리보기 숨기기
+
+  // 알림이 0개면 안내 메시지 표시
+  if (!notifications.length) {
+    notificationContainer.innerHTML = `
+      <div class="p-3 text-center text-muted small">알림이 없습니다.</div>
+    `;
+    return;
+  }
+
+  notifications.forEach((noti) => {
+    const timeDiff = getTimeDiff(noti.createdAt);
+
+    const item = document.createElement("button");
+    item.type = "button";
+
+    // 읽음 여부
+    const readClass = noti.read ? "read" : "";
+    item.className = `dropdown-item d-flex align-items-center gap-2 ${readClass}`;
+    const imageSrc = noti.bookImageUrl || getRandomBookCover();
+
+    item.innerHTML = `
+      <img
+        src="${imageSrc}"
+        alt="책 이미지"
+        class="notification-book-image me-2"
+        width="50"
+        height="65"
+      />
+      <div class="dropdown-text">
+        <div class="text-muted text-xs notification-text-online-ellipsis">${noti.bookTitle}</div>
+        <div class="notification-text-ellipsis small">
+          ${noti.msgPreview}
+        </div>
+        <span class="text-muted text-xs notification-text-online-ellipsis">${timeDiff} · ${noti.senderName ?? "익명"}</span>
+      </div>
+    `;
+
+    // 클릭 시 읽음 처리 (read = true 업데이트) 등의 로직 추가 가능
+    item.addEventListener("click", () => {
+      // todo 읽음처리 및 location.href 이동
+      onNotificationClicked(noti);
+    });
+
+    notificationMenu.appendChild(item);
+  });
+}
+function getRandomBookCover() {
+  const randomIndex = Math.floor(Math.random() * defaultCovers.length);
+  console.log(defaultCovers[randomIndex]);
+  return `/assets/images/default_book_covers/${defaultCovers[randomIndex]}`;
+}
+async function initializeNotification() {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) {
+    notificationContainer.innerHTML = `<div class="text-center text-secondary">로그인 후 알림 설정이 가능합니다.</div>`;
+    notificationToggle.setAttribute("disabled", true);
+    return;
+  }
+  // 토글 초기 상태 설정
+
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  const userData = userDoc.exists() ? userDoc.data() : null;
+
+  const notificationSetting = userData?.notificationSetting ?? false;
+  notificationToggle.checked = notificationSetting;
+  // 1. 유저의 notification 목록 가져오기
+
+  const q = query(
+    collection(db, "users", user.uid, "notifications"),
+    orderBy("createdAt", "desc") // 오래된 → 최신
+  );
+
+  const notificationsSnapshot = await getDocs(q);
+  const notifications = notificationsSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(), // bookId, msgPreview, createdAt, read
+  }));
+
+  if (!notifications.every((noti) => noti.read)) {
+    notificationBadge.classList.remove("d-none");
+    notificationBadge.innerText = notifications.filter((noti) => !noti.read).length;
+  }
+  // 2. 각 알림에 대해 bookId로 books/{bookId} 조회해서 imageUrl 붙이기
+
+  renderNotifications(notifications);
+
+  let checked = notificationToggle.checked;
+  let timeoutId = null;
+  const delay = 300;
+  notificationToggle.addEventListener("change", () => {
+    // 1) 상태 변경
+    checked = notificationToggle.checked;
+
+    // 3) 기존 타이머 취소
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    // 4) 마지막 상태만 서버에 반영
+    timeoutId = setTimeout(async () => {
+      timeoutId = null;
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          notificationSetting: checked,
+        });
+      } catch (err) {
+        // 필요하면 여기서 롤백도 가능 (예: render(element, prevState))
+        notificationToggle.setAttribute("disabled", true);
+      }
+    }, delay);
+  });
+}
+// 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대

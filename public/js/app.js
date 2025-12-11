@@ -127,6 +127,7 @@ export async function loginWithGoogle() {
       provider: "google",
       createdAt: new Date(),
       autoSubscribe: true,
+      notificationSetting: true,
     });
   }
 }
