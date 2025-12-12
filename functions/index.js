@@ -135,6 +135,68 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
   return res.json({ ok: true, id: bookRef.id });
 });
 
+exports.createQuestion = functions.https.onRequest(async (req, res) => {
+  if (req.method !== "POST") return res.status(405).send("Method not allowed");
+
+  // ID 토큰 검증
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "unauthorized" });
+
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(token);
+  } catch {
+    return res.status(401).json({ error: "invalid token" });
+  }
+
+  const { bookId, question, createdBy, createdAt, createdByUid } = req.body || {};
+  if (!bookId) return res.status(400).json({ error: "bookId required" });
+  if (!question) return res.status(400).json({ error: "질문을 입력해야합니다." });
+
+  const questionsRef = db.collection("books").doc(bookId).collection("questions");
+
+  try {
+    const result = await db.runTransaction(async (tx) => {
+      // 최대 3개만 허용이니까, 3개만 읽어도 충분
+      const snap = await tx.get(questionsRef.limit(3));
+
+      // 1) 개수 제한
+      if (snap.size >= 3) {
+        return { status: "LIMIT" };
+      }
+
+      // 2) 중복 검사 (현재 존재하는 최대 2개/3개 내에서 검사)
+      const isDuplicate = snap.docs.some((d) => d.data().question === question);
+      if (isDuplicate) {
+        return { status: "DUPLICATE" };
+      }
+
+      // 3) 없으면 생성
+      const newRef = questionsRef.doc(); // 자동 ID (조건 통과한 경우에만 생성)
+      tx.set(newRef, {
+        question,
+        createdBy: createdBy || null,
+        createdByUid: decoded.uid,
+        createdAt: Timestamp.now(),
+      });
+
+      return { status: "CREATED", id: newRef.id };
+    });
+
+    if (result.status === "LIMIT") {
+      return res.status(400).json({ error: "질문은 최대 3개까지만 허용됩니다." });
+    }
+    if (result.status === "DUPLICATE") {
+      return res.status(200).json({ error: "중복된 질문입니다." });
+    }
+    return res.status(201).json({ id: result.id });
+  } catch (e) {
+    // 트랜잭션 자체 실패(네트워크/권한 등)
+    return res.status(500).json({ error: "transaction failed" });
+  }
+});
+
 exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (event) => {
   const snap = event.data;
   const ctx = event;

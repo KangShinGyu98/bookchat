@@ -28,8 +28,7 @@ import {
   connectFirestoreEmulator,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { getDatabase, ref, get, update, remove, connectDatabaseEmulator } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
-
+import { getFunctions, connectFunctionsEmulator } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
 export const firebaseConfig = {
   apiKey: "AIzaSyA9bkq2Zgs2yWfCBfgCl1GdSDehMY3ZGRs",
   authDomain: "book-chat-da2d6.firebaseapp.com",
@@ -42,7 +41,7 @@ export const firebaseConfig = {
 //인증정보
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-
+export const functions = getFunctions(app);
 export const rtdb = getDatabase();
 const googleProvider = new GoogleAuthProvider();
 const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
@@ -53,6 +52,7 @@ if (isLocalhost) {
   connectFirestoreEmulator(db, "127.0.0.1", 8080); // Firestore 에뮬레이터 포트
   connectDatabaseEmulator(rtdb, "127.0.0.1", 9000); // RTDB 에뮬레이터 포트 (쓸 거면)
   connectAuthEmulator(auth, "http://127.0.0.1:9099");
+  connectFunctionsEmulator(functions, "127.0.0.1", 5005);
 }
 //래핑 함수
 export function onUser(cb) {
@@ -63,13 +63,10 @@ export async function logout() {
   try {
     if (user) {
       const presenceRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
-
       await remove(presenceRef);
-
-      // 🔍 3) 삭제 후 값 확인
-      const afterSnap = await get(presenceRef);
     }
     await signOut(auth);
+    location.reload();
   } catch (err) {
     alert("로그아웃 중 문제가 발생했습니다.");
   }

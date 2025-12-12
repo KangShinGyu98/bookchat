@@ -269,14 +269,15 @@ async function renderNotifications(notifications) {
   // console.log(notifications);
 
   // 스피너 제거
-  if (notificationContainer) notificationContainer.classList.add("d-none"); // 미리보기 숨기기
 
   // 알림이 0개면 안내 메시지 표시
   if (!notifications.length) {
     notificationContainer.innerHTML = `
-      <div class="p-3 text-center text-muted small">알림이 없습니다.</div>
+    <div class="p-3 text-center text-muted small">알림이 없습니다.</div>
     `;
     return;
+  } else {
+    if (notificationContainer) notificationContainer.classList.add("d-none"); // 미리보기 숨기기
   }
 
   notifications.forEach((noti) => {

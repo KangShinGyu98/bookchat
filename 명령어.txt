@@ -13,3 +13,6 @@ npx firebase emulators:start --only hosting,firestore,auth,functions,database
 firebase emulators:start --only functions,firestore,database
 firebase functions:config:set naver.client_id="YOUR_ID" naver.client_secret="YOUR_SECRET"
 npx firebase emulators:start
+
+
+npx firebase emulators:start --only hosting,firestore,auth,functions,database

@@ -14,9 +14,12 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  where,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow, toastWarning } from "./myToast.js";
 import { attachDebouncedToggle } from "./debounceToggle.js";
+import { showLoginModal } from "./login.js";
 
 const params = new URLSearchParams(location.search);
 const slug = params.get("book");
@@ -35,6 +38,11 @@ const loginBtn = document.getElementById("loginBtn");
 const msgInput = document.getElementById("msgInput");
 const autoSubscribeToggle = document.getElementById("autoSubscribeChecked");
 const subscribeBtn = document.getElementById("subscribeBtn");
+const newQuestionOpenBtn = document.getElementById("newQuestionOpenBtn");
+const newQuestionModalEl = document.getElementById("newQuestionModal");
+const cancelQuestionBtn = document.getElementById("cancelQuestionBtn");
+let newQuestionModal;
+if (newQuestionModalEl && window.bootstrap) newQuestionModal = new window.bootstrap.Modal(newQuestionModalEl);
 
 let subscribeState = "unsubscribed"; // 초기 상태는 구독 안함
 msgInput.addEventListener("input", () => {
@@ -341,6 +349,112 @@ async function readNotifications(bookId) {
 
   await batch.commit();
 }
+
+newQuestionOpenBtn?.addEventListener("click", () => {
+  const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
+  if (isUser) {
+    renderNewQuestionModal(slug);
+    newQuestionModal?.show();
+  } else {
+    toastShow("로그인이 필요합니다.");
+    showLoginModal();
+  }
+});
+const newQuestionForm = document.getElementById("newQuestionForm");
+const newQuestionInput = document.getElementById("newQuestion");
+let questionsCollection = [];
+// 질문 등록 폼 제출 처리
+newQuestionForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요합니다.");
+  const user = auth.currentUser;
+  // 프로필에서 닉네임 다시 읽기
+
+  const profileRef = doc(db, "users", user.uid);
+  const profileSnap = await getDoc(profileRef);
+  const profile = profileSnap.exists() ? profileSnap.data() : {};
+  const nickname = profile.nickname || "익명";
+  if (!profile.nickname) return toastShow("별명 설정이 필요합니다.");
+
+  const payload = {
+    bookId: slug,
+    question: newQuestionInput.value.trim(),
+    createdBy: nickname,
+    createdAt: serverTimestamp(),
+    createdByUid: user.uid,
+  };
+  if (!payload.question) return toastShow("질문 내용을 입력하세요.");
+  if (questionsCollection.length >= 3) return toastShow("질문은 최대 3개까지 등록할 수 있습니다.");
+
+  const token = await user.getIdToken();
+  const res = await fetch("/createQuestion", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) return toastShow("등록에 실패했습니다.");
+  toastShow("등록 완료!");
+  newQuestionForm.reset();
+  newQuestionModal?.hide();
+  // 미리보기 초기화가 필요하면 여기서 추가
+});
+const questionSpinnerContainer = document.getElementById("question-spinner-container");
+const questionsContainer = document.getElementById("questions-container");
+async function renderNewQuestionModal(bookId) {
+  // /books/{bookId}/questions 에서 questions 받아와서 렌더링 및 클릭 이벤트 처리
+  questionsCollection = [];
+  questionsContainer.innerHTML = "";
+  if (questionSpinnerContainer) questionSpinnerContainer.classList.remove("d-none");
+
+  const questionsColRef = collection(db, "books", bookId, "questions");
+  const q = query(
+    questionsColRef,
+    orderBy("createdAt", "asc") // 오래된 순
+  );
+  const questionsSnap = await getDocs(q);
+
+  questionsSnap.docs.forEach((doc) => {
+    questionsCollection.push({
+      id: doc.id,
+      ...doc.data(),
+    });
+  });
+
+  questionsCollection.forEach((question) => {
+    const questionDiv = document.createElement("div");
+    questionDiv.className = "bg-primary rounded d-flex justify-content-between align-items-center p-2 mb-2";
+    questionDiv.innerHTML = `
+      <p class="p-0 m-0">${question.question || ""}</p>
+      <button type="button" class="btn-close text-sm" data-question-id="${question.id}"></button>
+    `;
+    questionsContainer.appendChild(questionDiv);
+    // 삭제 버튼 이벤트 리스너 추가
+    const deleteBtn = questionDiv.querySelector(".btn-close");
+    deleteBtn.addEventListener("click", async () => {
+      const questionId = deleteBtn.getAttribute("data-question-id");
+      if (questionId) {
+        // 질문 삭제
+        // 해당하는 div 및 questionsCollection 에서도 제거
+        questionsContainer.removeChild(questionDiv);
+        questionsCollection = questionsCollection.filter((q) => q.id !== questionId);
+
+        await deleteDoc(doc(db, "books", bookId, "questions", questionId));
+        toastShow("질문이 삭제되었습니다.");
+        renderNewQuestionModal(bookId); // 모달 다시 렌더링
+      }
+    });
+  });
+  if (questionSpinnerContainer) questionSpinnerContainer.classList.add("d-none");
+}
+
+cancelQuestionBtn?.addEventListener("click", () => {
+  newQuestionForm?.reset(); // 입력 초기화
+  newQuestionModal?.hide(); // 모달 닫기 (이미 만들어둔 newQuestionModal 인스턴스 사용)
+});
 
 loadBook();
 subscribeMessages();
