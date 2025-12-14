@@ -249,9 +249,14 @@ a:hover {
   width: 50%;
   margin: 0 auto; /* 가운데 정렬 유지 */
 }
-.dropdown-menu {
-  width: 360px;
-  height: 450px;
+.rating-menu {
+  width: 300px;
+  height: 100px;
+  /* overflow-y: scroll; */
+}
+.notification-menu {
+  width: 300px;
+  height: 400px;
   overflow-y: scroll;
 }
 .dropdown-text {

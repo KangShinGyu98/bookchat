@@ -13,6 +13,7 @@
         { "source": "/searchBooks", "function": "searchBooks" },
         { "source": "/createBook", "function": "createBook" },
         { "source": "/createQuestion", "function": "createQuestion" },
+        { "source": "/createOrUpdateRating", "function": "createOrUpdateRating" },
         { "source": "/chat", "destination": "/chat.html" }
       ]
     }

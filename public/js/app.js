@@ -54,6 +54,7 @@ if (isLocalhost) {
   connectAuthEmulator(auth, "http://127.0.0.1:9099");
   connectFunctionsEmulator(functions, "127.0.0.1", 5005);
 }
+console.log("dbId:", db._databaseId?.database);
 //래핑 함수
 export function onUser(cb) {
   return onAuthStateChanged(auth, cb);

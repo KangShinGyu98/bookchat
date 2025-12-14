@@ -115,7 +115,9 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
   await bookRef.set({
     title,
     author,
-    rating: Number(rating) || 0,
+    ratingAvg: 0,
+    ratingSum: 0,
+    ratingCount: 0,
     imageUrl,
     questions,
     createdByUid: uid,
@@ -257,4 +259,84 @@ exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (
   });
 
   await Promise.all(writePromises);
+});
+
+exports.createOrUpdateRating = functions.https.onRequest(async (req, res) => {
+  if (req.method !== "POST") return res.status(405).send("Method not allowed");
+
+  // ID 토큰 검증
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "unauthorized" });
+
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(token);
+  } catch {
+    return res.status(401).json({ error: "invalid token" });
+  }
+  const { bookId, rating, createdBy, createdByUid } = req.body || {};
+  if (!bookId) return res.status(400).json({ error: "bookId required" });
+  if (!rating) return res.status(400).json({ error: "평점을 입력해야합니다." });
+
+  const bookRef = db.collection("books").doc(bookId);
+  const ratingsRef = db.collection("books").doc(bookId).collection("ratings");
+
+  try {
+    const result = await db.runTransaction(async (tx) => {
+      // 기존의 값이 있으면 update 처리
+      const snap = await tx.get(ratingsRef.where("createdByUid", "==", decoded.uid).limit(1));
+      const bookDoc = await tx.get(bookRef);
+      const bookData = bookDoc.data() || {};
+      if (snap.empty) {
+        // 없으면 생성
+        const newRef = ratingsRef.doc(); // 자동 ID
+        tx.set(newRef, {
+          rating,
+          createdBy: createdBy || null,
+          createdByUid: decoded.uid,
+          createdAt: Timestamp.now(),
+        });
+        // 책 문서의 ratingSum, ratingCount, ratingAvg 업데이트
+        const prevSum = bookData.ratingSum || 0;
+        const prevCount = bookData.ratingCount || 0;
+        const newSum = prevSum + rating;
+        const newCount = prevCount + 1;
+        const newAvg = (newSum / newCount).toFixed(1);
+        tx.update(bookRef, {
+          ratingSum: newSum,
+          ratingCount: newCount,
+          ratingAvg: newAvg,
+        });
+
+        return { status: "CREATED", id: newRef.id };
+      } else {
+        const doc = snap.docs[0];
+        tx.update(doc.ref, {
+          rating,
+          createdAt: Timestamp.now(),
+        });
+        // 책 문서의 ratingSum, ratingAvg 업데이트
+        const prevSum = bookData.ratingSum || 0;
+        const prevCount = bookData.ratingCount || 0;
+        const oldRating = doc.data().rating || 0;
+        const newSum = prevSum - oldRating + rating;
+        const newAvg = (newSum / prevCount).toFixed(2);
+        tx.update(bookRef, {
+          ratingSum: newSum,
+          ratingAvg: newAvg,
+        });
+        return { status: "UPDATED", id: doc.id };
+      }
+    });
+
+    if (result.status === "UPDATED") {
+      return res.status(200).json({ id: result.id });
+    }
+    return res.status(201).json({ id: result.id });
+  } catch (e) {
+    // 트랜잭션 자체 실패(네트워크/권한 등)
+    console.error(e);
+    return res.status(500).json({ error: e.message || "transaction failed" });
+  }
 });

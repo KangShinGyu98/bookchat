@@ -41,8 +41,53 @@ const subscribeBtn = document.getElementById("subscribeBtn");
 const newQuestionOpenBtn = document.getElementById("newQuestionOpenBtn");
 const newQuestionModalEl = document.getElementById("newQuestionModal");
 const cancelQuestionBtn = document.getElementById("cancelQuestionBtn");
+const ratingInput = document.getElementById("newRating");
+const ratingValueDisplay = document.getElementById("ratingValueDisplay");
+
 let newQuestionModal;
 if (newQuestionModalEl && window.bootstrap) newQuestionModal = new window.bootstrap.Modal(newQuestionModalEl);
+const syncRating = () => {
+  if (!ratingInput || !ratingValueDisplay) return;
+  ratingValueDisplay.textContent = ratingInput.value;
+};
+async function syncRatingChange() {
+  console.log("Rating changed post:", ratingInput.value);
+  if (!ratingInput) return;
+  if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요합니다.");
+  const user = auth.currentUser;
+  // 프로필에서 닉네임 다시 읽기
+
+  const profileRef = doc(db, "users", user.uid);
+  const profileSnap = await getDoc(profileRef);
+  const profile = profileSnap.exists() ? profileSnap.data() : {};
+  const nickname = profile.nickname || "익명";
+  if (!profile.nickname) return toastShow("별명 설정이 필요합니다.");
+
+  const payload = {
+    bookId: slug,
+    rating: ratingInput.value.trim(),
+    createdBy: nickname,
+    createdByUid: user.uid,
+  };
+  if (!payload.rating) return toastShow("슬라이더를 클릭해주세요.");
+
+  const token = await user.getIdToken();
+  const res = await fetch("/createOrUpdateRating", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) return toastShow("평점 등록에 실패했습니다.");
+  toastShow(`평점 ${ratingInput.value}점이 저장되었습니다.`);
+}
+ratingInput?.addEventListener("input", syncRating); // 드래그 중
+ratingInput?.addEventListener("pointerup", syncRatingChange); // 드래그 완료
+
+syncRating(); // 초기값 표시
 
 let subscribeState = "unsubscribed"; // 초기 상태는 구독 안함
 msgInput.addEventListener("input", () => {
@@ -62,7 +107,7 @@ async function loadBook() {
   const data = snap.data();
   bookTitleEl.textContent = data.title;
   const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000) : null;
-  bookMetaEl.textContent = `${data.author || "-"} · 평점 ${data.rating ?? "-"} · 작성일 ${createdAt ? createdAt.toLocaleDateString() : "-"}`;
+  bookMetaEl.textContent = `${data.author || "-"} · 평점 ${data.ratingAvg} · 작성일 ${createdAt ? createdAt.toLocaleDateString() : "-"}`;
 }
 
 function renderSubscribeToggle(element, state) {

@@ -44,6 +44,10 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if false;
       }
+      match /ratings/{ratingId} {
+      	allow read : if true;
+        allow write : if false;
+      }
 
       match /questions/{questionId} {
         allow read: if true;
