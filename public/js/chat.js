@@ -51,7 +51,6 @@ const syncRating = () => {
   ratingValueDisplay.textContent = ratingInput.value;
 };
 async function syncRatingChange() {
-  console.log("Rating changed post:", ratingInput.value);
   if (!ratingInput) return;
   if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요합니다.");
   const user = auth.currentUser;
@@ -173,7 +172,6 @@ async function initializeSubscription() {
     });
   }
 
-  console.log("Initial subscribeState:", subscribeState);
   renderSubscribeToggle(subscribeBtn, subscribeState);
 
   //users subscribedBooks 안에 book slug 가 있으면 구독 취소 버튼 보이기, 없으면 구독 버튼 보이기

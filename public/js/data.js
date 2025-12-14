@@ -23,14 +23,12 @@ export async function getBooks(searchCondition) {
 async function getEmulatorPage(searchCondition) {
   // searchCondition 은 받아두지만, 여기서는 정렬/페이징 안 쓰고 전체 반환만 함
   const colRef = collection(db, "books");
-  console.log("Emulator mode: loading all books from Firestore : ", db);
   const snap = await getDocs(colRef);
 
   const hits = snap.docs.map((doc) => ({
     objectID: doc.id, // Algolia 호환용
     ...doc.data(),
   }));
-  console.log("Emulator mode: returning all books", hits);
   return {
     hits, // 전체 책 데이터 배열
     page: 0, // 항상 0페이지로 고정

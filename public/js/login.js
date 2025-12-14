@@ -144,10 +144,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   googleLoginBtn?.addEventListener("click", async () => {
     try {
       await loginWithGoogle();
-      if (loginModal) {
-        loginModal.hide();
-        toastShow("성공적으로 로그인 되었습니다.");
-      }
+      location.reload();
+      // if (loginModal) {
+      //   loginModal.hide();
+      // }
     } catch (err) {
       alert(err.message || "Google 로그인에 실패했습니다.");
     }
@@ -266,7 +266,6 @@ async function renderNotifications(notifications) {
   //   read: false,
   //   bookImage: "https://....jpg"   <-- books/{bookId} 의 imageUrl
   // }
-  // console.log(notifications);
 
   // 스피너 제거
 
@@ -319,7 +318,6 @@ async function renderNotifications(notifications) {
 }
 function getRandomBookCover() {
   const randomIndex = Math.floor(Math.random() * defaultCovers.length);
-  console.log(defaultCovers[randomIndex]);
   return `/assets/images/default_book_covers/${defaultCovers[randomIndex]}`;
 }
 async function initializeNotification() {
