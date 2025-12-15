@@ -93,6 +93,17 @@ newPostForm?.addEventListener("submit", async (e) => {
   newPostForm.reset();
   newPostModal?.hide();
   // 미리보기 초기화가 필요하면 여기서 추가
+  const p = new URLSearchParams(location.search);
+  const searchCondition = {
+    pageIndex: Number(p.get("pageIndex")) || 1,
+    pageSize: Number(p.get("pageSize")) || 15,
+    orderBy: p.get("orderBy") || "recent",
+    searchFilter: p.get("searchFilter") || "all",
+    searchInput: p.get("searchInput") || "",
+  };
+  const booksRes = await getBooks(searchCondition);
+  renderBooks(booksRes.hits || []);
+  imgPreview.classList.toggle("d-none", true); // 미리보기 숨기기
 });
 
 cancelBookBtn?.addEventListener("click", () => {
