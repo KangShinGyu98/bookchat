@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "book-chat-da2d6"
+  },
+  "targets": {
+    "book-chat-da2d6": {
+      "hosting": {
+        "production": [
+          "book-chat-da2d6"
+        ],
+        "prototype": [
+          "bookchat-prototype"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
