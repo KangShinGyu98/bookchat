@@ -1,6 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+  	match /nicknames/{normalizedNickname} {
+    	  allow read: if true;
+
+        // 신규 생성만 허용
+        allow create: if request.auth != null
+                      && request.auth.token.firebase.sign_in_provider != "anonymous"
+                      && !exists(/databases/$(database)/documents/nicknames/$(normalizedNickname))
+                      && request.resource.data.uid == request.auth.uid;
+
+        // 수정, 삭제 전부 차단
+        allow update, delete: if false;
+    }
     match /users/{uid} {
       allow read: if request.auth != null
                   && request.auth.uid == uid;

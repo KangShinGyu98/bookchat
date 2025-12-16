@@ -309,8 +309,6 @@ function renderBooks(books) {
   books.forEach((book) => {
     const ratingText = typeof book.ratingAvg === "number" ? book.ratingAvg : "-";
     const tr = document.createElement("tr");
-    console.log(book);
-    console.log(book.subscribedMembers);
     tr.innerHTML = `
       <td class="text-center text-truncate" style="max-width: 50px;">${ratingText}</td>
       <td class="text-truncate" style="max-width: 516px;"><a href=chat.html?book=${encodeURIComponent(book.objectID)}>${book.title || "-"}</a></td>

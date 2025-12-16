@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import { toastShow, toastWarning } from "./myToast.js";
@@ -110,7 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (loginModalEl && window.bootstrap) loginModal = new window.bootstrap.Modal(loginModalEl);
   let nicknameModal;
   if (nicknameModalEl && window.bootstrap) nicknameModal = new window.bootstrap.Modal(nicknameModalEl);
-  nicknameBtn?.addEventListener("click", (e) => {
+  nicknameBtn?.addEventListener("click", async (e) => {
     e.preventDefault();
     const nicknameInput = document.getElementById("nickname");
     const nickname = nicknameInput?.value?.trim();
@@ -126,15 +127,47 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     const profileRef = doc(db, "users", user.uid);
-    setDoc(profileRef, { nickname }, { merge: true })
-      .then(() => {
-        nicknameModal?.hide();
-        nicknameContainer.textContent = `${nickname}`;
-        toastShow("성공적으로 별명이 설정되었습니다.");
-      })
-      .catch((err) => {
-        alert("별명 설정에 실패했습니다: " + (err.message || err));
+
+    // 닉네임은 문서ID로 "normalizedNickname"을 쓰는 걸 추천 (중복체크가 깔끔)
+    const rawNickname = nickname;
+    const normalizedNickname = rawNickname.trim().toLowerCase();
+    const nicknameRef = doc(db, "nicknames", normalizedNickname);
+    try {
+      await runTransaction(db, async (tx) => {
+        // 1) 현재 유저 프로필 읽기 (기존 닉네임 있으면 정리용)
+        const profileSnap = await tx.get(profileRef);
+
+        // 2) 닉네임 중복 검사
+        const nickSnap = await tx.get(nicknameRef);
+        if (nickSnap.exists()) {
+          const err = new Error("DUPLICATE_NICKNAME");
+          err.code = "DUPLICATE_NICKNAME";
+          throw err;
+        }
+
+        // 4) nicknames 컬렉션에 예약(유일 키)
+        tx.set(nicknameRef, {
+          nickname: rawNickname.trim(), // 원본 표시용
+          normalizedNickname,
+          uid: user.uid,
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        });
+
+        // 5) users 프로필에 닉네임 저장
+        tx.set(profileRef, { nickname: rawNickname.trim() }, { merge: true });
       });
+
+      nicknameModal?.hide();
+      nicknameContainer.textContent = rawNickname.trim();
+      toastShow("성공적으로 별명이 설정되었습니다.");
+    } catch (err) {
+      if (err?.code === "DUPLICATE_NICKNAME" || err?.message === "DUPLICATE_NICKNAME") {
+        toastShow("이미 사용 중인 별명입니다.");
+        return;
+      }
+      alert("별명 설정에 실패했습니다: " + (err?.message || err));
+    }
   });
   loginOpenBtn?.addEventListener("click", async () => {
     const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
