@@ -104,6 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
     const nicknameInput = document.getElementById("nickname");
     const nickname = nicknameInput?.value?.trim();
+    // const normalizedNickname = nickname.toLowerCase();
     const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
     const user = auth.currentUser;
     if (!isUser) {

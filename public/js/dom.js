@@ -1,6 +1,6 @@
 import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
 import { getBooks, searchNaverBooks } from "./data.js";
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, query, where, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow, toastWarning } from "./myToast.js";
 import { showLoginModal } from "./login.js";
 // dom 조작, event 리스너 등록, rendering, format 과 같은 Util 함수들
@@ -29,7 +29,11 @@ const cancelBookBtn = document.getElementById("cancelBookBtn");
 const ratingInput = document.getElementById("newRating");
 const questionInput = document.getElementById("newQuestion");
 const ratingValueDisplay = document.getElementById("ratingValueDisplay");
-
+const ISBNInput = document.getElementById("ISBN");
+const ISBNModalEl = document.getElementById("ISBNModal");
+const ISBNForm = document.getElementById("ISBNForm");
+let ISBNModal;
+if (ISBNModalEl && window.bootstrap) ISBNModal = new bootstrap.Modal(ISBNModalEl);
 const syncRating = () => {
   if (!ratingInput || !ratingValueDisplay) return;
   ratingValueDisplay.textContent = ratingInput.value;
@@ -54,10 +58,14 @@ if (newPostModalEl && window.bootstrap) newPostModal = new window.bootstrap.Moda
 // 모달 인스턴스
 let naverSearchModal;
 if (naverSearchModalEl && window.bootstrap) naverSearchModal = new bootstrap.Modal(naverSearchModalEl);
+const overlay = document.getElementById("modalLoadingOverlay");
+const modalContent = document.getElementById("newPostModalContent");
 
-//등록 버튼
-newPostForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
+function setModalLoading(isLoading) {
+  overlay?.classList.toggle("d-none", !isLoading);
+  modalContent?.classList.toggle("is-loading", isLoading);
+}
+async function saveNewBook() {
   if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요합니다.");
   const user = auth.currentUser;
   // 프로필에서 닉네임 다시 읽기
@@ -67,7 +75,6 @@ newPostForm?.addEventListener("submit", async (e) => {
   const profile = profileSnap.exists() ? profileSnap.data() : {};
   const nickname = profile.nickname || "익명";
   if (!profile.nickname) return toastShow("별명 설정이 필요합니다.");
-
   const payload = {
     title: titleInput?.value?.trim(),
     author: authorInput?.value?.trim(),
@@ -75,18 +82,28 @@ newPostForm?.addEventListener("submit", async (e) => {
     imageUrl: imgInput?.value || "",
     question: questionInput?.value?.trim(),
     createdByName: nickname,
+    ISBN: ISBNInput?.value?.trim() || "",
   };
   if (!payload.title || !payload.author) return toastShow("제목/저자를 입력하세요.");
 
   const token = await user.getIdToken();
-  const res = await fetch("/createBook", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  let res;
+  setModalLoading(true);
+
+  try {
+    res = await fetch("/createBook", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    toastShow("등록 중 오류가 발생했습니다.");
+  } finally {
+    setModalLoading(false);
+  }
 
   if (!res.ok) return toastShow("등록에 실패했습니다.");
   toastShow("등록 완료!");
@@ -104,6 +121,32 @@ newPostForm?.addEventListener("submit", async (e) => {
   const booksRes = await getBooks(searchCondition);
   renderBooks(booksRes.hits || []);
   imgPreview.classList.toggle("d-none", true); // 미리보기 숨기기
+}
+//등록 버튼
+newPostForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  //isbn 기준 where로 중복 확인
+  const isbn = ISBNInput?.value?.trim().replace(/[-\s]/g, "") || "";
+  if (isbn) {
+    // ISBN이 있으면 중복 체크
+    const q = query(collection(db, "books"), where("ISBN", "==", isbn));
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      // 이미 존재
+      return toastShow("이미 등록된 도서입니다.");
+    }
+  } else {
+    ISBNModal?.show();
+    return false;
+  }
+  saveNewBook();
+});
+ISBNForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  saveNewBook();
+  ISBNModal?.hide();
 });
 
 cancelBookBtn?.addEventListener("click", () => {
@@ -167,6 +210,7 @@ const renderNaverCards = (items) => {
         imgPreview.src = item.image || "";
         imgPreview.classList.toggle("d-none", !item.image);
       }
+      if (ISBNInput) ISBNInput.value = item.isbn ? item.isbn : "";
       toastShow("입력이 성공적으로 완료되었습니다.");
       naverSearchModal?.hide();
     };
@@ -263,7 +307,7 @@ function renderBooks(books) {
 
   tbody.innerHTML = "";
   books.forEach((book) => {
-    const ratingText = typeof book.rating === "number" ? book.rating.toFixed(1) : "-";
+    const ratingText = typeof book.ratingAvg === "number" ? book.ratingAvg : "-";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="text-center text-truncate" style="max-width: 50px;">${ratingText}</td>

@@ -16,6 +16,7 @@ import {
   arrayRemove,
   where,
   writeBatch,
+  increment,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow, toastWarning } from "./myToast.js";
 import { attachDebouncedToggle } from "./debounceToggle.js";
@@ -43,7 +44,14 @@ const newQuestionModalEl = document.getElementById("newQuestionModal");
 const cancelQuestionBtn = document.getElementById("cancelQuestionBtn");
 const ratingInput = document.getElementById("newRating");
 const ratingValueDisplay = document.getElementById("ratingValueDisplay");
+const carouselInner = document.getElementById("carouselInner");
+const overlay = document.getElementById("modalLoadingOverlay");
+const modalContent = document.getElementById("newQuestionModalContent");
 
+function setModalLoading(isLoading) {
+  overlay?.classList.toggle("d-none", !isLoading);
+  modalContent?.classList.toggle("is-loading", isLoading);
+}
 let newQuestionModal;
 if (newQuestionModalEl && window.bootstrap) newQuestionModal = new window.bootstrap.Modal(newQuestionModalEl);
 const syncRating = () => {
@@ -61,14 +69,21 @@ async function syncRatingChange() {
   const profile = profileSnap.exists() ? profileSnap.data() : {};
   const nickname = profile.nickname || "익명";
   if (!profile.nickname) return toastShow("별명 설정이 필요합니다.");
+  const ratingValue = Number(ratingInput.value.trim());
+  console.log("ratingValue:", ratingValue);
+
+  if (!Number.isFinite(ratingValue)) {
+    // 잘못된 입력 처리
+    return toastShow("올바른 평점을 입력해주세요.");
+  }
 
   const payload = {
     bookId: slug,
-    rating: ratingInput.value.trim(),
+    rating: ratingValue,
     createdBy: nickname,
     createdByUid: user.uid,
   };
-  if (!payload.rating) return toastShow("슬라이더를 클릭해주세요.");
+  if (ratingValue) return toastShow("슬라이더를 클릭해주세요.");
 
   const token = await user.getIdToken();
   const res = await fetch("/createOrUpdateRating", {
@@ -106,7 +121,7 @@ async function loadBook() {
   const data = snap.data();
   bookTitleEl.textContent = data.title;
   const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000) : null;
-  bookMetaEl.textContent = `${data.author || "-"} · 평점 ${data.ratingAvg} · 작성일 ${createdAt ? createdAt.toLocaleDateString() : "-"}`;
+  bookMetaEl.textContent = `${data.author || "-"} · 평점 ${data.ratingAvg ?? "-"} · 작성일 ${createdAt ? createdAt.toLocaleDateString() : "-"}`;
 }
 
 function renderSubscribeToggle(element, state) {
@@ -137,14 +152,14 @@ async function initializeSubscription() {
   autoSubscribeToggle.checked = autoSubscribe;
 
   // books/{slug}/members 에 uid 가 있는지 확인
-  const bookRef = doc(db, "books", slug, "members", user.uid);
-  const snap = await getDoc(bookRef);
+  const membersRef = doc(db, "books", slug, "members", user.uid);
+  const snap = await getDoc(membersRef);
+  const newMember = !snap.exists();
   if (!snap.exists()) {
     // 문서가 없으면(book 내 userId 가 없으면) 새로 생성
-    await setDoc(bookRef, {
+    await setDoc(membersRef, {
       joinedAt: serverTimestamp(),
       lastAccessAt: serverTimestamp(),
-      memberUid: user.uid,
       subscribe: autoSubscribe === true, // autoSubscribe면 true, 아니면 false
     });
 
@@ -157,7 +172,7 @@ async function initializeSubscription() {
   } else {
     //문서가 있을 때
     // 문서가 있을 때 기존 값 유지하면서 필요한 값만 업데이트
-    await updateDoc(bookRef, {
+    await updateDoc(membersRef, {
       lastAccessAt: serverTimestamp(),
       // 기존에 값이 있으면 autoSubscribe 가 true 더라도 유지
     });
@@ -169,6 +184,12 @@ async function initializeSubscription() {
     subscribedBooks.push(slug);
     await updateDoc(doc(db, "users", user.uid), {
       subscribedBooks: arrayUnion(slug),
+    });
+    const bookRef = doc(db, "books", slug);
+    console.log("새 구독자 추가, +1 증가");
+    await updateDoc(bookRef, {
+      subscribedMembers: increment(1),
+      ...(newMember && { membersCount: increment(1) }),
     });
   }
 
@@ -249,97 +270,50 @@ form.addEventListener("submit", async (e) => {
 });
 
 // ===== 질문 캐루셀 =====
-let questions = [];
-let currentQuestionIndex = 0;
-
 async function loadQuestions() {
   try {
     const snap = await getDocs(collection(db, "books", slug, "questions"));
-    questions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    if (questions.length > 0) {
-      currentQuestionIndex = 0;
-      renderQuestionCard();
-    } else {
-      document.getElementById("questions").innerHTML = "";
-    }
+    renderQuestionCard(snap);
   } catch (error) {
     console.error("질문 로드 실패:", error);
   }
 }
 
-function renderQuestionCard() {
-  const container = document.getElementById("questions");
-  if (questions.length === 0) {
-    container.innerHTML = "";
-    return;
-  }
-
-  const current = questions[currentQuestionIndex];
-  const createdAt = current.createdAt?.toDate
-    ? current.createdAt.toDate()
-    : current.createdAt?.seconds
-    ? new Date(current.createdAt.seconds * 1000)
-    : null;
-
-  // 드롭다운 옵션 생성
-  const dropdownOptions = questions
-    .map((q, idx) => `<option value="${idx}" ${idx === currentQuestionIndex ? "selected" : ""}>${q.question || "제목 없음"}</option>`)
-    .join("");
-
-  container.innerHTML = `
-    <div class="question-card">
-      <div class="d-flex align-items-center justify-content-between gap-2">
-        <!-- 이전 버튼 -->
-        <button class="btn btn-sm btn-outline-secondary" id="prevQuestionBtn" ${questions.length <= 1 ? "disabled" : ""}>
-          <i class="bi bi-chevron-left"></i>
-        </button>
-
-        <!-- 질문 내용 + 드롭다운 -->
-        <div class="flex-grow-1 d-flex flex-column gap-2">
-          <div class="question-content p-3 rounded bg-light border">
-            <div class="question-text">${current.question || "질문이 없습니다"}</div>
-            ${createdAt ? `<div class="text-muted text-2xs mt-2">작성일: ${createdAt.toLocaleDateString()}</div>` : ""}
-            ${current.createdBy ? `<div class="text-muted text-2xs">작성자: ${current.createdBy}</div>` : ""}
-          </div>
-          <!-- 질문 선택 드롭다운 -->
-          <select class="form-select form-select-sm" id="questionSelect">
-            ${dropdownOptions}
-          </select>
-          <div class="text-muted text-2xs text-center">${currentQuestionIndex + 1} / ${questions.length}</div>
+function renderQuestionCard(snap) {
+  if (snap.empty) {
+    const noQuestionDiv = document.createElement("div");
+    noQuestionDiv.className = "carousel-item active";
+    noQuestionDiv.innerHTML = `
+      <div class="question-item">
+        <div class="question-text">
+          등록된 질문이 없습니다. 새로운 질문을 등록해보세요!
         </div>
-
-        <!-- 다음 버튼 -->
-        <button class="btn btn-sm btn-outline-secondary" id="nextQuestionBtn" ${questions.length <= 1 ? "disabled" : ""}>
-          <i class="bi bi-chevron-right"></i>
-        </button>
       </div>
-    </div>
-  `;
-
-  // 이벤트 리스너 추가
-  document.getElementById("prevQuestionBtn").addEventListener("click", () => {
-    if (currentQuestionIndex > 0) {
-      currentQuestionIndex--;
-      renderQuestionCard();
-    }
-  });
-
-  document.getElementById("nextQuestionBtn").addEventListener("click", () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      currentQuestionIndex++;
-      renderQuestionCard();
-    }
-  });
-
-  document.getElementById("questionSelect").addEventListener("change", (e) => {
-    currentQuestionIndex = parseInt(e.target.value);
-    renderQuestionCard();
-  });
+    `;
+    carouselInner.appendChild(noQuestionDiv);
+  } else {
+    snap.docs.forEach((docSnap, index) => {
+      const q = docSnap.data();
+      const isActive = index === 0 ? "active" : "";
+      const questionDiv = document.createElement("div");
+      questionDiv.className = `carousel-item ${isActive}`;
+      questionDiv.innerHTML = `
+        <div class="question-item">
+          <div class="question-text">
+            "${q.question || ""}"
+          </div>
+        </div>
+      `;
+      carouselInner.appendChild(questionDiv);
+    });
+  }
+  return;
 }
 
 // loadQuestions();
 
 async function subscribeToggleCall(state, slug) {
+  console.log("구독 토글 호출:", state, slug);
   const user = auth.currentUser;
   if (!user) {
     toastShow("로그인 후 이용해주세요.");
@@ -351,6 +325,7 @@ async function subscribeToggleCall(state, slug) {
   const subscribedBooks = userData?.subscribedBooks || [];
   const bookMemberRef = doc(db, "books", slug, "members", user.uid);
   // books/{slug}/members 에도 subscribe 필드 업데이트
+  const bookRef = doc(db, "books", slug);
 
   if (state === "unsubscribed") {
     // subscribedBooks 에서 현재 책 slug 제거
@@ -358,7 +333,15 @@ async function subscribeToggleCall(state, slug) {
       subscribedBooks: arrayRemove(slug),
     });
     await setDoc(bookMemberRef, { subscribe: false }, { merge: true });
-    toastShow("구독이 취소되었습니다.");
+    console.log("구독자 감소, -1 감소");
+    try {
+      await updateDoc(bookRef, {
+        subscribedMembers: increment(-1),
+      });
+      toastShow("구독이 취소되었습니다.");
+    } catch (error) {
+      console.error("구독자 수 감소 실패:", error);
+    }
   } else if (state === "subscribed") {
     // subscribedBooks 에서 현재 책 slug 추가
     if (subscribedBooks.includes(slug)) {
@@ -369,7 +352,14 @@ async function subscribeToggleCall(state, slug) {
 
       await setDoc(bookMemberRef, { subscribe: true }, { merge: true });
       await updateDoc(userDocRef, { subscribedBooks: arrayUnion(slug) });
-
+      console.log("새 구독자 추가, +1 증가");
+      try {
+        await updateDoc(bookRef, {
+          subscribedMembers: increment(1),
+        });
+      } catch (error) {
+        console.error("구독자 수 증가 실패:", error);
+      }
       toastShow("구독이 설정되었습니다.");
     }
   }
@@ -430,6 +420,7 @@ newQuestionForm?.addEventListener("submit", async (e) => {
   if (questionsCollection.length >= 3) return toastShow("질문은 최대 3개까지 등록할 수 있습니다.");
 
   const token = await user.getIdToken();
+  setModalLoading(true);
   const res = await fetch("/createQuestion", {
     method: "POST",
     headers: {
@@ -438,11 +429,11 @@ newQuestionForm?.addEventListener("submit", async (e) => {
     },
     body: JSON.stringify(payload),
   });
-
   if (!res.ok) return toastShow("등록에 실패했습니다.");
   toastShow("등록 완료!");
   newQuestionForm.reset();
   newQuestionModal?.hide();
+  setModalLoading(false);
   // 미리보기 초기화가 필요하면 여기서 추가
 });
 const questionSpinnerContainer = document.getElementById("question-spinner-container");
@@ -502,5 +493,5 @@ cancelQuestionBtn?.addEventListener("click", () => {
 loadBook();
 subscribeMessages();
 onUser(() => initializeSubscription());
-// onUser(() => loadQuestions());
+onUser(() => loadQuestions());
 onUser(() => readNotifications(slug));

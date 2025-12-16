@@ -22,6 +22,7 @@ import {
   runTransaction,
   onDisconnect,
   set,
+  off,
   serverTimestamp as rtdbServerTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
@@ -64,28 +65,59 @@ export function joinRoom(user) {
   onDisconnect(presenceRef).remove();
 }
 // 멤버 목록 + count 구독
-export async function listenRoomMembers(callback) {
+export function listenRoomMembers(bookId, callback) {
+  // RTDB: presence
   const membersRef = ref(rtdb, `presence/${bookId}/users`);
-  const subscribeMembersRef = collection(db, "books", bookId, "members");
 
-  // 🔥 Firestore v9 올바른 count 쿼리
-  const subscribedQuery = query(subscribeMembersRef, where("subscribe", "==", true));
-  const subscribedSnapshot = await getCountFromServer(subscribedQuery);
-  onValue(membersRef, (snapshot) => {
+  // Firestore: books/{bookId} 카운트들
+  const bookRef = doc(db, "books", bookId);
+
+  // 최신값 캐시(둘 중 하나가 먼저 와도 합쳐서 callback)
+  let latestMembers = [];
+  let latestOnlineCount = 0;
+
+  let latestMembersCount = 0; // books/{bookId}.membersCount
+  let latestSubscribedMembers = 0; // books/{bookId}.subscribedMembers
+
+  const emit = () => {
+    callback({
+      members: latestMembers,
+      count: latestOnlineCount, // 현재 접속 인원(비익명만)
+      membersCount: latestMembersCount, // 전체 멤버 수(또는 너가 정한 의미)
+      subscribedCount: latestSubscribedMembers, // 구독 멤버 수
+    });
+  };
+
+  // 1) RTDB listen (접속자 목록/인원)
+  const rtdbUnsub = onValue(membersRef, (snapshot) => {
     const val = snapshot.val() || {};
-    const members = Object.entries(val).map(([uid, data]) => ({
+    latestMembers = Object.entries(val).map(([uid, data]) => ({
       uid,
       ...data,
     }));
 
-    const count = members.filter((member) => member.isAnonymous === false).length;
-
-    callback({
-      members,
-      count,
-      subscribedCount: subscribedSnapshot.data().count,
-    });
+    latestOnlineCount = latestMembers.filter((m) => m.isAnonymous === false).length;
+    emit();
   });
+
+  // 2) Firestore listen (membersCount, subscribedMembers)
+  const fsUnsub = onSnapshot(bookRef, (snap) => {
+    const data = snap.data() || {};
+
+    // 필드가 없을 수도 있으니 안전하게 숫자 처리
+    latestMembersCount = Number(data.membersCount ?? 0);
+    latestSubscribedMembers = Number(data.subscribedMembers ?? 0);
+
+    emit();
+  });
+
+  // cleanup(구독 해제) 반환
+  return () => {
+    // RTDB v9 onValue는 off로 해제하는 패턴이 안전함
+    off(membersRef);
+    // Firestore onSnapshot은 함수 호출로 해제
+    fsUnsub();
+  };
 }
 
 export function setupChatUI(user) {
@@ -93,7 +125,7 @@ export function setupChatUI(user) {
   const memberCountEl = document.getElementById("membersCount");
   if (!memberCountEl) return;
 
-  listenRoomMembers(({ count, subscribedCount }) => {
+  const unsubscribe = listenRoomMembers(bookId, ({ count, subscribedCount }) => {
     memberCountEl.textContent = `접속인원 ${count}/${subscribedCount}명`;
   });
 }

@@ -154,7 +154,10 @@
     <!-- 새 글 작성 모달, 새 글 모달 -->
     <div class="modal fade" id="newPostModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content position-relative" id="newPostModalContent">
+          <div id="modalLoadingOverlay" class="modal-loading-overlay d-none">
+            <div class="spinner-border" role="status" aria-label="loading"></div>
+          </div>
           <div class="modal-header">
             <h5 class="modal-title">새 글 작성</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -176,11 +179,38 @@
                 <label class="form-label fw-bold">대화 주제(선택)</label>
                 <input type="text" class="form-control" id="newQuestion" placeholder="ex) 데미안은 실존 인물일까요?" autocomplete="off" />
               </div>
-
+              <div class="d-none">
+                <label class="form-label fw-bold">ISBN</label>
+                <input type="text" class="form-control" id="ISBN" autocomplete="off" />
+              </div>
               <div class="d-flex flex-column align-items-start">
                 <label class="form-label d-none">표지</label>
                 <input type="hidden" id="newImageUrl" />
                 <img id="newImagePreview" class="img-fluid rounded d-none" alt="표지 미리보기" />
+              </div>
+              <div class="d-flex gap-2">
+                <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>
+                <button id="cancelBookBtn" type="button" class="btn btn-outline-secondary w-100">취소</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- isbn 없을 때 경고 모달 -->
+    <div class="modal fade" id="ISBNModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-success p-2">
+            <h5 class="modal-title">경고</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body bg-primary">
+            <form id="ISBNForm" class="d-flex flex-column gap-3">
+              <div>
+                <div class="">
+                  <span>검색 기능을 사용해서 책을 등록하기를 권장하고 있습니다. 그래도 등록하시겠습니까?</span>
+                </div>
               </div>
               <div class="d-flex gap-2">
                 <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>

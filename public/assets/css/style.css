@@ -341,3 +341,25 @@ textarea {
   align-items: center;
   height: 80%;
 }
+
+.modal-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.65); /* 반투명 */
+  backdrop-filter: blur(2px); /* 뒤가 살짝 흐려짐 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10; /* modal-content 내부에서 위로 */
+}
+
+/* overlay가 보일 때 스크롤/클릭 막고 싶으면 */
+.modal-content.is-loading {
+  pointer-events: none; /* 내부 클릭 막기 */
+}
+.modal-content.is-loading .modal-loading-overlay {
+  pointer-events: auto; /* 스피너는 살아있게 */
+}
+.bookTitle {
+  max-width: 600px;
+}

@@ -104,20 +104,26 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
     return res.status(401).json({ error: "invalid token" });
   }
 
-  const { title, author, rating = 0, imageUrl = "", question = "", createdByName } = req.body || {};
+  const { title, author, rating = 0, imageUrl = "", question = "", createdByName, ISBN = "" } = req.body || {};
   if (!title || !author) return res.status(400).json({ error: "title/author required" });
   const now = Timestamp.now();
   const uid = decoded.uid;
   const displayName = createdByName || "익명";
   const questions = question ? [{ text: question, authorName: displayName, authorUid: uid, createdAt: now }] : [];
-
+  if (ISBN) {
+    // ISBN이 있으면 중복 검사
+    const existingSnap = await db.collection("books").where("ISBN", "==", ISBN).limit(1).get();
+    if (!existingSnap.empty) {
+      return res.status(400).json({ error: "이미 등록된 책입니다." });
+    }
+  }
   const bookRef = db.collection("books").doc(); // admin.firestore() 사용 금지
   await bookRef.set({
     title,
     author,
-    ratingAvg: 0,
-    ratingSum: 0,
-    ratingCount: 0,
+    ratingAvg: null,
+    ratingSum: null,
+    ratingCount: null,
     imageUrl,
     questions,
     createdByUid: uid,
@@ -127,8 +133,16 @@ exports.createBook = functions.https.onRequest(async (req, res) => {
     lastMessageAt: null,
     members: [uid],
     membersCount: 1,
+    subscribedMembers: 1,
+    ISBN: ISBN,
   });
-
+  //books/{bookId}/members 컬렉션에도 추가
+  const membersRef = db.collection("books").doc(bookRef.id).collection("members").doc(uid);
+  await membersRef.set({
+    subscribe: true,
+    joinedAt: now,
+  });
+  // 유저 문서에도 이 책 구독 추가
   await db
     .collection("users")
     .doc(uid)
@@ -269,6 +283,7 @@ exports.createOrUpdateRating = functions.https.onRequest(async (req, res) => {
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ error: "unauthorized" });
 
+  console.log("here1");
   let decoded;
   try {
     decoded = await admin.auth().verifyIdToken(token);
@@ -277,12 +292,15 @@ exports.createOrUpdateRating = functions.https.onRequest(async (req, res) => {
   }
   const { bookId, rating, createdBy, createdByUid } = req.body || {};
   if (!bookId) return res.status(400).json({ error: "bookId required" });
-  if (!rating) return res.status(400).json({ error: "평점을 입력해야합니다." });
-
+  if (!Number.isFinite(rating)) {
+    return res.status(400).json({ error: "평점을 입력해야합니다." });
+  }
+  if (typeof rating !== "number" || !Number.isFinite(rating)) return res.status(400).json({ error: "올바른 평점을 입력해주세요." });
   const bookRef = db.collection("books").doc(bookId);
   const ratingsRef = db.collection("books").doc(bookId).collection("ratings");
 
   try {
+    console.log("Starting transaction for createOrUpdateRating");
     const result = await db.runTransaction(async (tx) => {
       // 기존의 값이 있으면 update 처리
       const snap = await tx.get(ratingsRef.where("createdByUid", "==", decoded.uid).limit(1));
@@ -302,7 +320,10 @@ exports.createOrUpdateRating = functions.https.onRequest(async (req, res) => {
         const prevCount = bookData.ratingCount || 0;
         const newSum = prevSum + rating;
         const newCount = prevCount + 1;
-        const newAvg = (newSum / newCount).toFixed(1);
+        const newAvg = Number((newSum / newCount).toFixed(1));
+        console.log("newAvg:", newAvg);
+        console.log("newSum:", newSum);
+        console.log("newCount:", newCount);
         tx.update(bookRef, {
           ratingSum: newSum,
           ratingCount: newCount,

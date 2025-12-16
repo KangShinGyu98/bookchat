@@ -49,7 +49,7 @@
     <main class="main-container my-5">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h5 id="bookTitle" class="mb-1">로딩중...</h5>
+          <h5 id="bookTitle" class="mb-1 bookTitle">로딩중...</h5>
           <div class="text-muted small">
             <span id="bookMeta"></span>
             <span id="membersCount"> </span>
@@ -101,8 +101,8 @@
       </div>
       <div class="border bg-white chat-card rounded">
         <div id="carouselControls" class="carousel slide" data-bs-ride="carousel" data-bs-interval="50000">
-          <div class="carousel-inner text-muted text-sm">
-            <div class="carousel-item active">
+          <div class="carousel-inner text-muted text-sm" id="carouselInner">
+            <!-- <div class="carousel-item active">
               <div class="question-item">
                 <div class="question-text">
                   "테스트용 질문입니다. 1번 데미안은 과연 테스트용 질문입니다. 1번 데미안은 과연 테스트용 질문입니다. 1번 데미안은 과연 "
@@ -118,7 +118,7 @@
               <div class="question-item">
                 <div class="question-text">"테스트용 질문 세번째입니다. 3번 질문 내용은 무엇일까요?"</div>
               </div>
-            </div>
+            </div> -->
           </div>
           <a class="carousel-control-prev" href="#carouselControls" role="button" data-bs-slide="prev">
             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -148,7 +148,10 @@
     <!-- 질문등록 모달 -->
     <div class="modal fade" id="newQuestionModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content position-relative" id="newQuestionModalContent">
+          <div id="modalLoadingOverlay" class="modal-loading-overlay d-none">
+            <div class="spinner-border" role="status" aria-label="loading"></div>
+          </div>
           <div class="modal-header">
             <h5 class="modal-title">새 질문 작성</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
