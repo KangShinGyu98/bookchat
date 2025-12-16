@@ -213,78 +213,87 @@ exports.createQuestion = functions.https.onRequest(async (req, res) => {
   }
 });
 
-exports.onMessage = onDocumentCreated("books/{bookId}/messages/{msgId}", async (event) => {
-  const snap = event.data;
-  const ctx = event;
-  const bookId = ctx.params.bookId;
-  const message = snap.data();
-  const writePromises = [];
+exports.onMessage = onDocumentCreated(
+  {
+    document: "books/{bookId}/messages/{msgId}",
+    region: "asia-northeast3", // Firestore 위치와 동일
+    database: "bookchat-database",
+  },
+  async (event) => {
+    const snap = event.data;
+    const ctx = event;
+    const bookId = ctx.params.bookId;
+    1;
+    const message = snap.data();
+    const writePromises = [];
 
-  //4. book 문서의 lastMessage, lastMessageAt 업데이트
-  const bookRef = db.collection("books").doc(bookId);
-  writePromises.push(
-    bookRef.update({
-      lastMessage: message.text,
-      lastMessageAt: Timestamp.now(),
-    })
-  );
-  // 1. 이 책을 구독하는 유저 가져오기
-  const subscribers = await db.collection("users").where("subscribedBooks", "array-contains", bookId).get();
-  if (subscribers.empty) {
-    return;
+    //4. book 문서의 lastMessage, lastMessageAt 업데이트
+    const bookRef = db.collection("books").doc(bookId);
+    writePromises.push(
+      bookRef.update({
+        lastMessage: message.text,
+        lastMessageAt: Timestamp.now(),
+      })
+    );
+    // 1. 이 책을 구독하는 유저 가져오기
+    const subscribers = await db.collection("users").where("subscribedBooks", "array-contains", bookId).get();
+    if (subscribers.empty) {
+      await Promise.all(writePromises);
+      return;
+    }
+
+    // 2. RTDB에서 online인지 확인
+    const presenceSnap = await rtdb.ref(`presence/${bookId}/users`).get();
+    const presenceData = presenceSnap.val() || {};
+
+    const onlineUsers = Object.entries(presenceData)
+      .filter(([uid, info]) => info.state === "online")
+      .map(([uid]) => uid);
+    const notifyTargets = subscribers.docs.filter((doc) => !onlineUsers.includes(doc.id));
+
+    // 3. 알림 보관 저장 or FCM 전송
+    writePromises.push(
+      ...notifyTargets.map(async (user) => {
+        const notificationsRef = db.collection("users").doc(user.id).collection("notifications");
+
+        // 이 유저에게 이 책(bookId)에 대한 "읽지 않은 알림"이 있는지 확인
+        const existingSnap = await notificationsRef
+          .where("bookId", "==", bookId)
+          .where("read", "==", false)
+          // .orderBy("createdAt", "desc") // 필요하면 사용 (인덱스 필요)
+          .limit(1)
+          .get();
+
+        const bookDoc = await db.collection("books").doc(bookId).get();
+        const bookData = bookDoc.data() || {};
+
+        const payload = {
+          bookId,
+          bookTitle: bookData.title || "제목 없음",
+          bookImageUrl: bookData.imageUrl || "",
+          senderId: message.senderUid,
+          senderName: message.senderName || "익명",
+          msgPreview: message.text,
+          createdAt: Timestamp.now(),
+        };
+
+        if (existingSnap.empty) {
+          // 3-1. 읽지 않은 알림이 없다 → 새 알림 생성
+          await notificationsRef.add({
+            ...payload,
+            read: false,
+          });
+        } else {
+          // 3-2. 이미 읽지 않은 알림이 있다 → 그 알림만 내용/시간 업데이트
+          const docRef = existingSnap.docs[0].ref;
+          await docRef.update(payload);
+        }
+      })
+    );
+
+    await Promise.all(writePromises);
   }
-
-  // 2. RTDB에서 online인지 확인
-  const presenceSnap = await rtdb.ref(`presence/${bookId}/users`).get();
-  const presenceData = presenceSnap.val() || {};
-
-  const onlineUsers = Object.entries(presenceData)
-    .filter(([uid, info]) => info.state === "online")
-    .map(([uid]) => uid);
-  const notifyTargets = subscribers.docs.filter((doc) => !onlineUsers.includes(doc.id));
-
-  // 3. 알림 보관 저장 or FCM 전송
-  writePromises.push(
-    notifyTargets.map(async (user) => {
-      const notificationsRef = db.collection("users").doc(user.id).collection("notifications");
-
-      // 이 유저에게 이 책(bookId)에 대한 "읽지 않은 알림"이 있는지 확인
-      const existingSnap = await notificationsRef
-        .where("bookId", "==", bookId)
-        .where("read", "==", false)
-        // .orderBy("createdAt", "desc") // 필요하면 사용 (인덱스 필요)
-        .limit(1)
-        .get();
-
-      const bookDoc = await db.collection("books").doc(bookId).get();
-      const bookData = bookDoc.data() || {};
-
-      const payload = {
-        bookId,
-        bookTitle: bookData.title || "제목 없음",
-        bookImageUrl: bookData.imageUrl || "",
-        senderId: message.senderUid,
-        senderName: message.senderName || "익명",
-        msgPreview: message.text,
-        createdAt: Timestamp.now(),
-      };
-
-      if (existingSnap.empty) {
-        // 3-1. 읽지 않은 알림이 없다 → 새 알림 생성
-        await notificationsRef.add({
-          ...payload,
-          read: false,
-        });
-      } else {
-        // 3-2. 이미 읽지 않은 알림이 있다 → 그 알림만 내용/시간 업데이트
-        const docRef = existingSnap.docs[0].ref;
-        await docRef.update(payload);
-      }
-    })
-  );
-
-  await Promise.all(writePromises);
-});
+);
 
 exports.createOrUpdateRating = functions.https.onRequest(async (req, res) => {
   if (req.method !== "POST") return res.status(405).send("Method not allowed");
