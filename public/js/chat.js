@@ -210,27 +210,46 @@ async function initializeSubscription() {
 }
 // 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대
 
-function renderMessages(snapshot) {
-  messagesEl.innerHTML = "";
-  snapshot.forEach((docSnap) => {
-    const m = docSnap.data();
-    const isMe = auth.currentUser && m.senderUid === auth.currentUser.uid;
-    const div = document.createElement("div");
-    div.className = `d-flex mb-2 ${isMe ? "justify-content-end" : "justify-content-start"}`;
-    div.innerHTML = `
-      <div class="msg ${isMe ? "msg-me" : "msg-other"}">
-        <div class="small text-muted mb-1">${m.senderName || "익명"}</div>
-        <div>${m.text || ""}</div>
-      </div>`;
-    messagesEl.appendChild(div);
-  });
+
+function renderMessages(docSnap) {
+  // messagesEl.innerHTML = "";
+
+  const m = docSnap.data();
+  const isMe = auth.currentUser && m.senderUid === auth.currentUser.uid;
+
+  const row = document.createElement("div");
+  row.className = `d-flex mb-2 ${isMe ? "justify-content-end" : "justify-content-start"}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = `msg ${isMe ? "msg-me" : "msg-other"}`;
+
+  const name = document.createElement("div");
+  name.className = "small text-muted mb-1";
+  name.textContent = m.senderName || "익명";
+
+  const body = document.createElement("div");
+  body.className = "w-100";
+  body.textContent = m.text || ""; // ✅ 여기서 특수문자 안전 처리 끝
+
+  bubble.appendChild(name);
+  bubble.appendChild(body);
+  row.appendChild(bubble);
+  messagesEl.appendChild(row);
+
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function subscribeMessages() {
   if (unsubscribeMsgs) unsubscribeMsgs();
   const q = query(collection(db, "books", slug, "messages"), orderBy("createdAt"));
-  unsubscribeMsgs = onSnapshot(q, (snap) => renderMessages(snap));
+  unsubscribeMsgs = onSnapshot(q, (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        // addMessage(change.doc);
+        renderMessages(change.doc);
+      }
+    });
+  });
 }
 
 textarea.addEventListener("keydown", function (e) {
@@ -248,8 +267,13 @@ form.addEventListener("submit", async (e) => {
     toastWarning("로그인이 필요한 서비스입니다.");
     return;
   }
-  const text = input.value.trim();
+  let text = input.value;
   if (!text) return;
+  if (text.length > 1000) {
+    toastWarning("메시지는 최대 1000자까지 입력할 수 있습니다.");
+    return;
+  }
+
   const user = auth.currentUser;
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const userData = userDoc.exists() ? userDoc.data() : null;
