@@ -1,0 +1,36 @@
+.autocomplete {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  max-height: 320px;
+  overflow: auto;
+  display: none; /* 기본 숨김 */
+}
+
+.autocomplete .ac-item {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.autocomplete .ac-item:hover,
+.autocomplete .ac-item.is-active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.autocomplete .ac-meta {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.autocomplete .ac-empty {
+  padding: 10px;
+  font-size: 13px;
+  opacity: 0.7;
+}
