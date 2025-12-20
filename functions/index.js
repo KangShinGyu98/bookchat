@@ -369,16 +369,12 @@ exports.registerUser = onCall({ region: "asia-northeast3", enforceAppCheck: proc
   }
 
   //validation 끝
-  console.log("registerUser called for uid:", auth.uid);
   const uid = auth.uid;
 
   // Auth 프로필 가져오기 (displayName, photoURL, email)
   const userRecord = await getAuth().getUser(uid);
 
   const userRef = db.doc(`users/${uid}`);
-  console.log("User record fetched for uid:", uid);
-  console.log("projectId:", db.projectId);
-  console.log("databaseId:", db.databaseId);
   // ✅ 없으면 생성 (동시 호출에도 안전하게)
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(userRef);

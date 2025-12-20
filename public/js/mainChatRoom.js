@@ -1,26 +1,21 @@
-import { auth, db, onUser, rtdb } from "./app.js";
 import {
+  onDisconnect,
+  onValue,
+  ref,
+  serverTimestamp as rtdbServerTimestamp,
+  set
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import {
+  addDoc,
+  collection,
   doc,
   getDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
   onSnapshot,
-  setDoc,
-  deleteDoc,
+  orderBy,
+  query,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { toastShow } from "./myToast.js";
-import {
-  getDatabase,
-  ref,
-  onValue,
-  runTransaction,
-  onDisconnect,
-  set,
-  serverTimestamp as rtdbServerTimestamp,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { auth, db, onUser, rtdb } from "./app.js";
 
 const params = new URLSearchParams(location.search);
 const bookTitleEl = document.getElementById("bookTitle");

@@ -41,39 +41,43 @@ async function searchAutocomplete(query) {
   return res.hits || [];
 }
 
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function renderItems(items) {
   currentItems = items;
   activeIndex = -1;
 
+  // 패널 내용 비우기
+  panelEl.replaceChildren();
+
   if (!items || items.length === 0) {
-    panelEl.innerHTML = `<div class="ac-empty">검색 결과가 없어요.</div>`;
+    const empty = document.createElement("div");
+    empty.className = "ac-empty";
+    empty.textContent = "검색 결과가 없어요.";
+    panelEl.appendChild(empty);
     openPanel();
     return;
   }
 
-  panelEl.innerHTML = items
-    .map((item, i) => {
-      const title = escapeHtml(item.title);
-      const author = escapeHtml(item.author);
-      return `
-        <div class="ac-item" data-index="${i}">
-          <div>${title} - ${author}</div>
-        </div>
-      `;
-    })
-    .join("");
+  const frag = document.createDocumentFragment();
 
+  items.forEach((item, i) => {
+    const row = document.createElement("div");
+    row.className = "ac-item";
+    row.dataset.index = String(i);
+
+    const line = document.createElement("div");
+    // ✅ textContent를 쓰면 escapeHtml 자체가 필요 없음
+    const title = item?.title ?? "";
+    const author = item?.author ?? "";
+    line.textContent = `${title} - ${author}`;
+
+    row.appendChild(line);
+    frag.appendChild(row);
+  });
+
+  panelEl.appendChild(frag);
   openPanel();
 }
+
 function debounce(fn, delay = 150) {
   return (...args) => {
     clearTimeout(debounceTimer);

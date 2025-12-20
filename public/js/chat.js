@@ -1,26 +1,26 @@
-import { auth, db, onUser, createQuestion, createOrUpdateRating } from "./app.js";
 import {
+  addDoc,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  deleteDoc,
   doc,
   getDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  onSnapshot,
-  setDoc,
-  deleteDoc,
   getDocs,
+  increment,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
   where,
   writeBatch,
-  increment,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { toastShow, toastWarning } from "./myToast.js";
+import { auth, createOrUpdateRating, createQuestion, db, onUser } from "./app.js";
 import { attachDebouncedToggle } from "./debounceToggle.js";
 import { showLoginModal } from "./login.js";
+import { toastShow, toastWarning } from "./myToast.js";
 
 const params = new URLSearchParams(location.search);
 const slug = params.get("book");
@@ -47,6 +47,7 @@ const ratingValueDisplay = document.getElementById("ratingValueDisplay");
 const carouselInner = document.getElementById("carouselInner");
 const overlay = document.getElementById("modalLoadingOverlay");
 const modalContent = document.getElementById("newQuestionModalContent");
+const newRatingOpenBtn = document.getElementById("newRatingOpenBtn");
 
 function setModalLoading(isLoading) {
   overlay?.classList.toggle("d-none", !isLoading);
@@ -54,13 +55,24 @@ function setModalLoading(isLoading) {
 }
 let newQuestionModal;
 if (newQuestionModalEl && window.bootstrap) newQuestionModal = new window.bootstrap.Modal(newQuestionModalEl);
+
+newRatingOpenBtn?.addEventListener("show.bs.dropdown", (e) => {
+  const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
+
+  if (!isUser) {
+    e.preventDefault(); // ✅ dropdown 열림 차단
+    toastShow("로그인이 필요한 서비스입니다.");
+    showLoginModal();
+  }
+});
+
 const syncRating = () => {
   if (!ratingInput || !ratingValueDisplay) return;
   ratingValueDisplay.textContent = ratingInput.value;
 };
 async function syncRatingChange() {
   if (!ratingInput) return;
-  if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요합니다.");
+  if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요한 서비스입니다.");
   const user = auth.currentUser;
   // 프로필에서 닉네임 다시 읽기
 

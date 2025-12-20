@@ -1,43 +1,14 @@
-import { auth, db, onUser, rtdb } from "./app.js";
-import {
-  doc,
-  getDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  onSnapshot,
-  setDoc,
-  deleteDoc,
-  where,
-  getCountFromServer,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { db, onUser, rtdb } from "./app.js";
 
-import { toastShow } from "./myToast.js";
 import {
-  getDatabase,
-  ref,
-  onValue,
-  runTransaction,
-  onDisconnect,
-  set,
   off,
+  onDisconnect,
+  onValue,
+  ref,
   serverTimestamp as rtdbServerTimestamp,
+  set,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-
-const bookTitleEl = document.getElementById("bookTitle");
-const bookMetaEl = document.getElementById("bookMeta");
-const messagesEl = document.getElementById("messages");
-const form = document.getElementById("chatForm");
-const input = document.getElementById("chatInput");
-const unSubscribeBtn = document.getElementById("unSubscribeBtn");
-const userArea = document.getElementById("userArea");
-const loginBtn = document.getElementById("loginBtn");
-const memberCountSpan = document.getElementById("chat-card-member-count");
-const chatFoldBtn = document.getElementById("chat-fold-btn");
-const chatWidgetContainer = document.getElementById("chat-widget-container");
-const chatOpenBtn = document.getElementById("chat-widget-container-open-btn");
 
 ///
 // 오늘 날짜 키 (예: "2025-12-02")
@@ -66,10 +37,7 @@ export function joinRoom(user) {
 }
 // 멤버 목록 + count 구독
 export function listenRoomMembers(bookId, callback) {
-  // RTDB: presence
   const membersRef = ref(rtdb, `presence/${bookId}/users`);
-
-  // Firestore: books/{bookId} 카운트들
   const bookRef = doc(db, "books", bookId);
 
   // 최신값 캐시(둘 중 하나가 먼저 와도 합쳐서 callback)
@@ -88,8 +56,7 @@ export function listenRoomMembers(bookId, callback) {
     });
   };
 
-  // 1) RTDB listen (접속자 목록/인원)
-  const rtdbUnsub = onValue(membersRef, (snapshot) => {
+  const rtdbHandler = (snapshot) => {
     const val = snapshot.val() || {};
     latestMembers = Object.entries(val).map(([uid, data]) => ({
       uid,
@@ -98,24 +65,22 @@ export function listenRoomMembers(bookId, callback) {
 
     latestOnlineCount = latestMembers.filter((m) => m.isAnonymous === false).length;
     emit();
-  });
+  };
 
-  // 2) Firestore listen (membersCount, subscribedMembers)
+  // 등록
+  onValue(membersRef, rtdbHandler);
+
+  // Firestore listen
   const fsUnsub = onSnapshot(bookRef, (snap) => {
     const data = snap.data() || {};
-
-    // 필드가 없을 수도 있으니 안전하게 숫자 처리
     latestMembersCount = Number(data.membersCount ?? 0);
     latestSubscribedMembers = Number(data.subscribedMembers ?? 0);
-
     emit();
   });
 
-  // cleanup(구독 해제) 반환
+  // ✅ cleanup: 해당 ref의 "value" 리스너 중 내가 등록한 것만 해제
   return () => {
-    // RTDB v9 onValue는 off로 해제하는 패턴이 안전함
-    off(membersRef);
-    // Firestore onSnapshot은 함수 호출로 해제
+    off(membersRef, "value", rtdbHandler);
     fsUnsub();
   };
 }
@@ -129,9 +94,9 @@ export function setupChatUI(user) {
     memberCountEl.textContent = `접속인원 ${count}/${subscribedCount}명`;
   });
 }
-onUser((user) => joinRoom(user));
 onUser(async (user) => {
   if (user) {
+    joinRoom(user);
     setupChatUI(user);
   }
 });

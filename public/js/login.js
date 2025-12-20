@@ -1,19 +1,17 @@
-import { loginWithGoogle, onUser, logout, db, auth, setNickname } from "./app.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
   setDoc,
   updateDoc,
-  getDocs,
-  collection,
-  query,
-  orderBy,
-  serverTimestamp,
-  runTransaction,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { auth, db, loginWithEmailPassword, loginWithGoogle, logout, onUser, setNickname, signupWithEmailPassword } from "./app.js";
 import { toastShow, toastWarning } from "./myToast.js";
-import { signupWithEmailPassword, loginWithEmailPassword } from "./app.js";
 const defaultCovers = [
   "andrei-castanha-6JAUfus77_E-unsplash.jpg",
   "andrei-castanha-zSbiRO6qBDY-unsplash.jpg",
@@ -29,7 +27,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     <!-- 로그인 모달 -->
     <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content position-relative" id="googleNewQuestionModalContent">
+          <div id="googleModalLoadingOverlay" class="modal-loading-overlay d-none">
+            <div class="spinner-border" role="status" aria-label="loading"></div>
+          </div>
           <div class="modal-header">
             <h5 class="modal-title">로그인</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -62,7 +63,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   <!-- 닉네임 모달 -->
     <div class="modal fade" id="nicknameModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content position-relative" id="nicknameNewQuestionModalContent">
+          <div id="nicknameModalLoadingOverlay" class="modal-loading-overlay d-none">
+            <div class="spinner-border" role="status" aria-label="loading"></div>
+          </div>
           <div class="modal-header">
             <h5 class="modal-title">사용할 별명을 설정해주세요.</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -106,7 +110,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const googleLoginBtn = document.getElementById("googleLoginBtn") ?? null;
   const nicknameBtn = document.getElementById("nicknameBtn") ?? null;
   const nicknameContainer = document.getElementById("nickname-badge") ?? null;
+  const googleOverlay = document.getElementById("googleModalLoadingOverlay");
+  const nicknameOverlay = document.getElementById("nicknameModalLoadingOverlay");
+  const googleModalContent = document.getElementById("googleNewQuestionModalContent");
+  const nicknameModalContent = document.getElementById("nicknameNewQuestionModalContent");
 
+  function setGoogleModalLoading(isLoading) {
+    googleOverlay?.classList.toggle("d-none", !isLoading);
+    googleModalContent?.classList.toggle("is-loading", isLoading);
+  }
+  function setNicknameModalLoading(isLoading) {
+    nicknameOverlay?.classList.toggle("d-none", !isLoading);
+    nicknameModalContent?.classList.toggle("is-loading", isLoading);
+  }
   let loginModal;
   if (loginModalEl && window.bootstrap) loginModal = new window.bootstrap.Modal(loginModalEl);
   let nicknameModal;
@@ -127,19 +143,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     // nicknames 에서 별명 중복확인
-    const nicknameDocRef = doc(db, "nicknames", nickname.trim().toLowerCase());
 
-    const snap = await getDoc(nicknameDocRef);
-    if (snap.exists()) {
-      toastShow("이미 사용 중인 별명입니다.");
-      return;
-    }
     if (nickname.length > 50) {
       toastShow("별명은 최대 50자까지 입력할 수 있습니다.");
       return;
     }
-
     try {
+      const nicknameDocRef = doc(db, "nicknames", nickname.trim().toLowerCase());
+      const snap = await getDoc(nicknameDocRef);
+      if (snap.exists()) {
+        toastShow("이미 사용 중인 별명입니다.");
+        return;
+      }
+      setNicknameModalLoading(true);
       const res = await setNickname({ nickname });
       const savedNickname = res?.data?.nickname || nickname;
 
@@ -164,10 +180,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         default:
           alert("별명 설정에 실패했습니다: " + (err?.message || err));
       }
+    } finally {
+      setNicknameModalLoading(false);
     }
   });
 
   loginOpenBtn?.addEventListener("click", async () => {
+    //button disable 했다가 처리 끝나면 다시 enable 하는 식으로 변경 고려
     const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
     if (isUser) {
       await logout()
@@ -185,6 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   googleLoginBtn?.addEventListener("click", async () => {
     try {
+      setGoogleModalLoading(true);
       await loginWithGoogle();
       location.reload();
       // if (loginModal) {
@@ -193,6 +213,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       console.error("Google 로그인 실패:", err);
       alert("Google 로그인에 실패했습니다.");
+    } finally {
+      setGoogleModalLoading(false);
     }
   });
 

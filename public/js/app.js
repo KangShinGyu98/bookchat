@@ -1,42 +1,31 @@
 // firebase 초기화 및 인증 관련 함수들
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app-check.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import {
+  connectAuthEmulator,
+  createUserWithEmailAndPassword,
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
   linkWithPopup,
+  onAuthStateChanged,
   signInWithCredential,
-  connectAuthEmulator,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-  doc,
-  getDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  onSnapshot,
-  setDoc,
-  deleteDoc,
-  getFirestore,
-  connectFirestoreEmulator,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import {
-  getDatabase,
-  ref,
-  get,
-  update,
-  remove,
   connectDatabaseEmulator,
+  get,
+  getDatabase,
   onDisconnect,
+  ref,
+  remove
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
+import {
+  connectFirestoreEmulator,
+  getFirestore
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
 export const firebaseConfig = {
   apiKey: "AIzaSyA9bkq2Zgs2yWfCBfgCl1GdSDehMY3ZGRs",
   authDomain: "book-chat-da2d6.firebaseapp.com",
@@ -46,7 +35,6 @@ export const firebaseConfig = {
   appId: "1:636447158366:web:0103fd018cc5c19ece04cf",
   measurementId: "G-YE0KCFD67Y",
 };
-import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app-check.js";
 
 //인증정보
 export const app = initializeApp(firebaseConfig);

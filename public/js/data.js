@@ -1,10 +1,10 @@
-import { collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import algoliasearch from "https://cdn.jsdelivr.net/npm/algoliasearch@4.24.0/dist/algoliasearch-lite.esm.browser.js";
+import { collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { db } from "./app.js";
 // data fetching 관련 함수들
 const USE_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
 const LOCAL_JSON_PATH = "./assets/data/books.json";
 let localCache = null; // 로컬 JSON 캐시
-import algoliasearch from "https://cdn.jsdelivr.net/npm/algoliasearch@4.24.0/dist/algoliasearch-lite.esm.browser.js";
 
 /**
  * pageIndex/pageSize/orderBy/orderDirection 기준으로 필요한 범위만 받아온다.

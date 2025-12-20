@@ -1,8 +1,8 @@
-import { loginWithGoogle, onUser, logout, db, auth, createBook, callNaverBooksApi } from "./app.js";
+import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { auth, callNaverBooksApi, createBook, db } from "./app.js";
 import { getBooks } from "./data.js";
-import { doc, getDoc, setDoc, query, where, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { toastShow, toastWarning } from "./myToast.js";
 import { showLoginModal } from "./login.js";
+import { toastShow } from "./myToast.js";
 // dom 조작, event 리스너 등록, rendering, format 과 같은 Util 함수들
 
 const orderSelect = document.getElementById("orderBy");
