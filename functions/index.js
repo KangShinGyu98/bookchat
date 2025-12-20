@@ -1,7 +1,7 @@
 /**
  * Import function triggers from their respective submodules:
  *
- * const {onCall} = require("firebase-functions/v2/https");
+ *
  * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
  *
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
@@ -27,189 +27,249 @@
 // });
 // 🔹 Firebase Functions v2
 const { setGlobalOptions } = require("firebase-functions/v2");
-const { onRequest } = require("firebase-functions/v2/https");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const logger = require("firebase-functions/logger");
-const { defineString } = require("firebase-functions/params");
 
-// 🔹 Firebase Admin SDK
+const { defineString } = require("firebase-functions/params");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+
+const logger = require("firebase-functions/logger");
+
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { getDatabase } = require("firebase-admin/database");
-const admin = require("firebase-admin");
+const { getAuth } = require("firebase-admin/auth");
 
-// 🔹 Functions 공통 옵션
+// Functions 공통 옵션
 setGlobalOptions({ maxInstances: 10 });
 
-// 🔹 Admin 초기화 (한 번만)
+// Admin 초기화
 const app = initializeApp();
 
-// 🔹 Firestore: 멀티 DB 중 "bookchat-database" 사용
-const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+// Firestore / RTDB
+const isEmulator = process.env.FUNCTIONS_EMULATOR === "true" || process.env.FIRESTORE_EMULATOR_HOST || process.env.FUNCTIONS_EMULATOR_HOST;
 
-// 에뮬레이터일 땐 기본 DB, 배포 환경일 땐 멀티 DB (정말 필요하다면)
-const db = isEmulator
-  ? getFirestore() // 기본 DB (에뮬레이터 호환)
-  : getFirestore(app, "bookchat-database");
-
-// 🔹 Realtime Database
+const db = isEmulator ? getFirestore(app) : getFirestore(app, "bookchat-database");
 const rtdb = getDatabase(app);
 
 // 🔹 환경 변수 (Firebase Functions params)
 const client_id = defineString("NAVER_CLIENT_ID");
 const client_secret = defineString("NAVER_CLIENT_SECRET");
 
-// 🔹 (선택) v1 스타일 함수가 아직 남아있다면 사용
-const functions = require("firebase-functions");
+const allowedOrigins = ["http://127.0.0.1:5005", "https://book-chat-da2d6.web.app"];
 
-exports.searchBooks = functions.https.onRequest(async (req, res) => {
-  const allowed = ["http://127.0.0.1:5005", "https://book-chat-da2d6.web.app"];
-  const origin = req.headers.origin;
-  if (allowed.includes(origin)) {
-    res.set("Access-Control-Allow-Origin", origin);
-  }
-  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Access-Control-Max-Age", "3600");
-  if (req.method === "OPTIONS") return res.status(204).send("");
+exports.callNaverBooksApi = onCall(
+  {
+    region: "asia-northeast3",
+    secrets: [client_id, client_secret],
+    enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true",
+  },
+  async (request) => {
+    const { data, auth } = request;
+    // ✅ 로그인 강제(원하면 익명도 허용/차단 가능)
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    }
+    const provider = auth.token?.firebase?.sign_in_provider;
+    if (provider === "anonymous") {
+      throw new HttpsError("permission-denied", "로그인이 필요합니다.");
+    }
+    const query = data?.query;
+    const display = 10;
+    const start = 1;
+    const sort = "sim";
 
-  const { query, display = 10, start = 1, sort = "sim" } = req.query;
-  if (!query) return res.status(400).json({ error: "query required" });
+    if (!query || !String(query).trim()) {
+      throw new HttpsError("invalid-argument", "query required");
+    }
+    if (String(query).trim().length > 50) {
+      throw new HttpsError("invalid-argument", "검색은 최대 50자까지 가능합니다.");
+    }
+    // 간단한 입력 정리(원하면 더 빡세게 제한 가능)
 
-  try {
-    const r = await fetch(
-      `https://openapi.naver.com/v1/search/book.json?query=${encodeURIComponent(query)}&display=${display}&start=${start}&sort=${sort}`,
-      { headers: { "X-Naver-Client-Id": client_id.value(), "X-Naver-Client-Secret": client_secret.value() } }
-    );
-    const data = await r.json();
-    return res.status(r.ok ? 200 : r.status).json(data);
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: "naver fetch failed" });
-  }
-});
+    try {
+      const url =
+        `https://openapi.naver.com/v1/search/book.json` + `?query=${encodeURIComponent(query)}` + `&display=${display}&start=${start}&sort=${sort}`;
 
-exports.createBook = functions.https.onRequest(async (req, res) => {
-  if (req.method !== "POST") return res.status(405).send("Method not allowed");
+      const r = await fetch(url, {
+        headers: {
+          "X-Naver-Client-Id": client_id.value(),
+          "X-Naver-Client-Secret": client_secret.value(),
+        },
+      });
 
-  // ID 토큰 검증
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "unauthorized" });
+      const bodyText = await r.text();
+      let json;
+      try {
+        json = JSON.parse(bodyText);
+      } catch {
+        throw new HttpsError("internal", "naver response parse failed");
+      }
 
-  let decoded;
-  try {
-    decoded = await admin.auth().verifyIdToken(token);
-  } catch {
-    return res.status(401).json({ error: "invalid token" });
-  }
+      if (!r.ok) {
+        // 네이버가 내려주는 에러를 그대로 넘기되, code는 적당히 매핑
+        throw new HttpsError("internal", `naver api error: ${r.status}`);
+      }
 
-  const { title, author, rating = 0, imageUrl = "", question = "", createdByName, ISBN = "" } = req.body || {};
-  if (!title || !author) return res.status(400).json({ error: "title/author required" });
-  const now = Timestamp.now();
-  const uid = decoded.uid;
-  const displayName = createdByName || "익명";
-  const questions = question ? [{ text: question, authorName: displayName, authorUid: uid, createdAt: now }] : [];
-  if (ISBN) {
-    // ISBN이 있으면 중복 검사
-    const existingSnap = await db.collection("books").where("ISBN", "==", ISBN).limit(1).get();
-    if (!existingSnap.empty) {
-      return res.status(400).json({ error: "이미 등록된 책입니다." });
+      return json; // 클라이언트에서 result.data로 받음
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      console.error(e);
+      throw new HttpsError("internal", "naver fetch failed");
     }
   }
-  const bookRef = db.collection("books").doc(); // admin.firestore() 사용 금지
-  await bookRef.set({
-    title,
-    author,
-    ratingAvg: null,
-    ratingSum: null,
-    ratingCount: null,
-    imageUrl,
-    questions,
-    createdByUid: uid,
-    createdByName: displayName,
-    createdAt: now,
-    lastMessage: null,
-    lastMessageAt: null,
-    members: [uid],
-    membersCount: 1,
-    subscribedMembers: 1,
-    ISBN: ISBN,
-  });
-  //books/{bookId}/members 컬렉션에도 추가
-  const membersRef = db.collection("books").doc(bookRef.id).collection("members").doc(uid);
-  await membersRef.set({
-    subscribe: true,
-    joinedAt: now,
-  });
-  // 유저 문서에도 이 책 구독 추가
-  await db
-    .collection("users")
-    .doc(uid)
-    .set({ subscribedBooks: FieldValue.arrayUnion(bookRef.id) }, { merge: true });
+);
 
-  return res.json({ ok: true, id: bookRef.id });
+exports.createBook = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+
+  //validation 시작
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+  }
+  const uid = auth.uid;
+  const { title, author, imageUrl = "", question = "", ISBN = "" } = data || {};
+  if (!title || !author) {
+    throw new HttpsError("invalid-argument", "title/author required");
+  }
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") {
+    throw new HttpsError("permission-denied", "책을 등록하기 위해서는 로그인이 필요합니다.");
+  }
+  if (String(title).trim().length > 100) {
+    throw new HttpsError("invalid-argument", "책제목은 최대 100자까지 입력할 수 있습니다.");
+  }
+  if (String(author).trim().length > 100) {
+    throw new HttpsError("invalid-argument", "저자는 최대 100자까지 입력할 수 있습니다.");
+  }
+  if (String(question).trim().length > 300) {
+    throw new HttpsError("invalid-argument", "질문은 최대 300자까지 입력할 수 있습니다.");
+  }
+  const userSnap = await db.collection("users").doc(uid).get();
+  if (!userSnap.exists || !userSnap.data().nickname) {
+    throw new HttpsError("failed-precondition", "질문을 등록하려면 닉네임을 설정해야합니다.");
+  }
+  //validation 끝
+
+  const createdByName = String(userSnap.data().nickname);
+  let bookId = null;
+  const now = Timestamp.now();
+
+  try {
+    await db.runTransaction(async (tx) => {
+      // ISBN 중복 검사
+      if (ISBN) {
+        const existingSnap = await tx.get(db.collection("books").where("ISBN", "==", ISBN).limit(1));
+        if (!existingSnap.empty) {
+          throw new HttpsError("already-exists", "이미 등록된 책입니다.");
+        }
+      }
+
+      const bookRef = db.collection("books").doc();
+      bookId = bookRef.id;
+      if (question) {
+        const questionRef = bookRef.collection("questions").doc();
+
+        await tx.set(questionRef, {
+          text: question,
+          createdBy: createdByName,
+          createdByUid: uid,
+          createdAt: now,
+        });
+      }
+      await tx.set(bookRef, {
+        title,
+        author,
+        ratingAvg: null,
+        ratingSum: null,
+        ratingCount: null,
+        imageUrl,
+        createdByUid: uid,
+        createdByName: createdByName, // ✅ 원본의 displayName undefined 버그 제거
+        createdAt: now,
+        lastMessage: null,
+        lastMessageAt: null,
+        membersCount: 1,
+        subscribedMembers: 1,
+        ISBN: ISBN || "",
+      });
+
+      await tx.set(bookRef.collection("members").doc(uid), {
+        subscribe: true,
+        joinedAt: now,
+      });
+
+      await tx.set(db.collection("users").doc(uid), { subscribedBooks: FieldValue.arrayUnion(bookRef.id) }, { merge: true });
+    });
+    return { ok: true, id: bookId };
+  } catch (e) {
+    // 이미 HttpsError로 던진 건 그대로 전달
+    if (e instanceof HttpsError) throw e;
+
+    console.error(e);
+    throw new HttpsError("internal", "createBook failed");
+  }
 });
 
-exports.createQuestion = functions.https.onRequest(async (req, res) => {
-  if (req.method !== "POST") return res.status(405).send("Method not allowed");
-
-  // ID 토큰 검증
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "unauthorized" });
-
-  let decoded;
-  try {
-    decoded = await admin.auth().verifyIdToken(token);
-  } catch {
-    return res.status(401).json({ error: "invalid token" });
+exports.createQuestion = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async ({ data, auth }) => {
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+  }
+  const uid = auth.uid;
+  const { bookId, text } = data || {};
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") {
+    throw new HttpsError("permission-denied", "질문을 등록하기 위해서는 로그인이 필요합니다.");
   }
 
-  const { bookId, question, createdBy, createdAt, createdByUid } = req.body || {};
-  if (!bookId) return res.status(400).json({ error: "bookId required" });
-  if (!question) return res.status(400).json({ error: "질문을 입력해야합니다." });
+  if (!bookId) {
+    throw new HttpsError("invalid-argument", "bookId required");
+  }
+  if (!text || !String(text).trim()) {
+    throw new HttpsError("invalid-argument", "질문을 입력해야합니다.");
+  }
+  if (String(text).trim().length > 300) {
+    throw new HttpsError("invalid-argument", "질문은 최대 300자까지 입력할 수 있습니다.");
+  }
+  const userSnap = await db.collection("users").doc(uid).get();
+  if (!userSnap.exists || !userSnap.data().nickname) {
+    throw new HttpsError("failed-precondition", "질문을 등록하려면 닉네임을 설정해야합니다.");
+  }
+  const createdBy = String(userSnap.data().nickname);
 
+  const normalizedText = String(text).trim();
   const questionsRef = db.collection("books").doc(bookId).collection("questions");
 
   try {
-    const result = await db.runTransaction(async (tx) => {
-      // 최대 3개만 허용이니까, 3개만 읽어도 충분
+    await db.runTransaction(async (tx) => {
       const snap = await tx.get(questionsRef.limit(3));
 
-      // 1) 개수 제한
+      // 412: 사전조건 실패 (최대 개수 초과)
       if (snap.size >= 3) {
-        return { status: "LIMIT" };
+        throw new HttpsError("failed-precondition", "질문은 최대 3개까지만 허용됩니다.");
       }
 
-      // 2) 중복 검사 (현재 존재하는 최대 2개/3개 내에서 검사)
-      const isDuplicate = snap.docs.some((d) => d.data().question === question);
+      // 409: 이미 존재 (중복)
+      const isDuplicate = snap.docs.some((d) => (d.data().text || "") === normalizedText);
       if (isDuplicate) {
-        return { status: "DUPLICATE" };
+        throw new HttpsError("already-exists", "중복된 질문입니다.");
       }
 
-      // 3) 없으면 생성
-      const newRef = questionsRef.doc(); // 자동 ID (조건 통과한 경우에만 생성)
+      const newRef = questionsRef.doc();
       tx.set(newRef, {
-        question,
-        createdBy: createdBy || null,
-        createdByUid: decoded.uid,
+        text: normalizedText,
+        createdBy: createdBy,
+        createdByUid: uid,
         createdAt: Timestamp.now(),
       });
-
-      return { status: "CREATED", id: newRef.id };
     });
 
-    if (result.status === "LIMIT") {
-      return res.status(400).json({ error: "질문은 최대 3개까지만 허용됩니다." });
-    }
-    if (result.status === "DUPLICATE") {
-      return res.status(200).json({ error: "중복된 질문입니다." });
-    }
-    return res.status(201).json({ id: result.id });
+    return { ok: true };
   } catch (e) {
-    // 트랜잭션 자체 실패(네트워크/권한 등)
-    return res.status(500).json({ error: "transaction failed" });
+    // 트랜잭션 내부에서 던진 HttpsError는 그대로 전달
+    if (e instanceof HttpsError) throw e;
+
+    console.error(e);
+    throw new HttpsError("internal", "transaction failed");
   }
 });
 
@@ -295,84 +355,208 @@ exports.onMessage = onDocumentCreated(
   }
 );
 
-exports.createOrUpdateRating = functions.https.onRequest(async (req, res) => {
-  if (req.method !== "POST") return res.status(405).send("Method not allowed");
-
-  // ID 토큰 검증
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "unauthorized" });
-
-  let decoded;
-  try {
-    decoded = await admin.auth().verifyIdToken(token);
-  } catch {
-    return res.status(401).json({ error: "invalid token" });
+// 트리거 사용하지 않는  이유는 linkwith popup 과 같은 경우 때문
+exports.registerUser = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+  if (!auth) {
+    console.log("Unauthenticated request to registerUser");
+    throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
   }
-  const { bookId, rating, createdBy, createdByUid } = req.body || {};
-  if (!bookId) return res.status(400).json({ error: "bookId required" });
-  if (!Number.isFinite(rating)) {
-    return res.status(400).json({ error: "평점을 입력해야합니다." });
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") {
+    console.log("Anonymous user cannot registerUser");
+    throw new HttpsError("permission-denied", "로그인이 필요합니다.");
   }
-  if (typeof rating !== "number" || !Number.isFinite(rating)) return res.status(400).json({ error: "올바른 평점을 입력해주세요." });
+
+  //validation 끝
+  console.log("registerUser called for uid:", auth.uid);
+  const uid = auth.uid;
+
+  // Auth 프로필 가져오기 (displayName, photoURL, email)
+  const userRecord = await getAuth().getUser(uid);
+
+  const userRef = db.doc(`users/${uid}`);
+  console.log("User record fetched for uid:", uid);
+  console.log("projectId:", db.projectId);
+  console.log("databaseId:", db.databaseId);
+  // ✅ 없으면 생성 (동시 호출에도 안전하게)
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) {
+      tx.set(userRef, {
+        uid,
+        email: userRecord.email ?? null,
+        displayName: userRecord.displayName ?? null,
+        photoURL: userRecord.photoURL ?? null,
+        provider: userRecord.providerData?.[0]?.providerId ?? "unknown",
+        createdAt: Timestamp.now(),
+        autoSubscribe: true,
+        notificationSetting: true,
+      });
+    }
+  });
+  console.log("User registration transaction completed for uid:", uid);
+  return { ok: true };
+});
+
+exports.createOrUpdateRating = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+
+  if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") throw new HttpsError("permission-denied", "로그인이 필요합니다.");
+
+  const uid = auth.uid;
+  const { bookId, rating } = data || {};
+
+  if (!bookId) throw new HttpsError("invalid-argument", "bookId required");
+
+  const ratingNum = Number(rating);
+  if (!Number.isFinite(ratingNum) || ratingNum < 0 || ratingNum > 5 || !Number.isInteger(ratingNum * 2)) {
+    throw new HttpsError("invalid-argument", "올바른 평점을 입력해주세요.");
+  }
+
+  // 닉네임은 서버에서 users 문서로 읽어서 확정(클라 payload 신뢰 X)
+  const userSnap = await db.collection("users").doc(uid).get();
+  const nickname = userSnap.exists ? userSnap.data()?.nickname : null;
+  if (!nickname) throw new HttpsError("failed-precondition", "별명 설정이 필요합니다.");
+
   const bookRef = db.collection("books").doc(bookId);
-  const ratingsRef = db.collection("books").doc(bookId).collection("ratings");
+  const ratingsCol = bookRef.collection("ratings");
 
   try {
     const result = await db.runTransaction(async (tx) => {
-      // 기존의 값이 있으면 update 처리
-      const snap = await tx.get(ratingsRef.where("createdByUid", "==", decoded.uid).limit(1));
       const bookDoc = await tx.get(bookRef);
+      if (!bookDoc.exists) throw new HttpsError("not-found", "책을 찾을 수 없습니다.");
+
+      // 기존 평점(유저당 1개) 조회
+      const existingQ = ratingsCol.where("createdByUid", "==", uid).limit(1);
+      const existingSnap = await tx.get(existingQ);
+
       const bookData = bookDoc.data() || {};
-      if (snap.empty) {
-        // 없으면 생성
-        const newRef = ratingsRef.doc(); // 자동 ID
+      const prevSum = Number(bookData.ratingSum || 0);
+      const prevCount = Number(bookData.ratingCount || 0);
+      const now = Timestamp.now();
+      if (existingSnap.empty) {
+        // 생성
+        const newRef = ratingsCol.doc();
         tx.set(newRef, {
-          rating,
-          createdBy: createdBy || null,
-          createdByUid: decoded.uid,
-          createdAt: Timestamp.now(),
+          rating: ratingNum,
+          createdBy: nickname,
+          createdByUid: uid,
+          createdAt: now,
+          updatedAt: now,
         });
-        // 책 문서의 ratingSum, ratingCount, ratingAvg 업데이트
-        const prevSum = bookData.ratingSum || 0;
-        const prevCount = bookData.ratingCount || 0;
-        const newSum = prevSum + rating;
+
+        const newSum = prevSum + ratingNum;
         const newCount = prevCount + 1;
         const newAvg = Number((newSum / newCount).toFixed(1));
+
         tx.update(bookRef, {
           ratingSum: newSum,
           ratingCount: newCount,
           ratingAvg: newAvg,
+          updatedAt: now,
         });
 
         return { status: "CREATED", id: newRef.id };
       } else {
-        const doc = snap.docs[0];
-        tx.update(doc.ref, {
-          rating,
-          createdAt: Timestamp.now(),
+        // 업데이트
+        const docSnap = existingSnap.docs[0];
+        const oldRating = Number(docSnap.data()?.rating || 0);
+
+        tx.update(docSnap.ref, {
+          rating: ratingNum,
+          updatedAt: now,
         });
-        // 책 문서의 ratingSum, ratingAvg 업데이트
-        const prevSum = bookData.ratingSum || 0;
-        const prevCount = bookData.ratingCount || 0;
-        const oldRating = doc.data().rating || 0;
-        const newSum = prevSum - oldRating + rating;
-        const newAvg = (newSum / prevCount).toFixed(2);
+
+        const newSum = prevSum - oldRating + ratingNum;
+        const newAvg = prevCount > 0 ? Number((newSum / prevCount).toFixed(1)) : null;
+
         tx.update(bookRef, {
           ratingSum: newSum,
           ratingAvg: newAvg,
+          updatedAt: now,
         });
-        return { status: "UPDATED", id: doc.id };
+
+        return { status: "UPDATED", id: docSnap.id };
       }
     });
 
-    if (result.status === "UPDATED") {
-      return res.status(200).json({ id: result.id });
-    }
-    return res.status(201).json({ id: result.id });
+    return { ok: true, ...result };
   } catch (e) {
-    // 트랜잭션 자체 실패(네트워크/권한 등)
+    if (e instanceof HttpsError) throw e;
     console.error(e);
-    return res.status(500).json({ error: e.message || "transaction failed" });
+    throw new HttpsError("internal", "createOrUpdateRating failed");
+  }
+});
+
+function normalizeNickname(raw) {
+  return String(raw || "")
+    .trim()
+    .toLowerCase();
+}
+
+exports.setNickname = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+  const now = Timestamp.now();
+
+  // 1) auth validation
+  if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") {
+    throw new HttpsError("permission-denied", "닉네임 설정을 위해서는 로그인이 필요합니다.");
+  }
+
+  const uid = auth.uid;
+  const rawNickname = String(data?.nickname || "").trim();
+  if (!rawNickname) throw new HttpsError("invalid-argument", "별명을 입력해주세요.");
+
+  // (선택) 길이/형식 제한 - 필요에 맞게 조정
+  if (rawNickname.length > 50) {
+    throw new HttpsError("invalid-argument", "별명은 최대 50자까지 입력할 수 있습니다.");
+  }
+
+  const normalizedNickname = normalizeNickname(rawNickname);
+  if (!normalizedNickname) throw new HttpsError("invalid-argument", "별명을 입력해주세요.");
+
+  const userRef = db.collection("users").doc(uid);
+  const newNickRef = db.collection("nicknames").doc(normalizedNickname);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) {
+        throw new HttpsError("failed-precondition", "회원 정보가 없습니다. 다시 로그인해주세요.");
+      }
+
+      // ✅ 닉네임 이미 있으면 1회 정책상 거절
+      const existingNickname = userSnap.data()?.nickname;
+      if (existingNickname) {
+        throw new HttpsError("failed-precondition", "닉네임은 변경할 수 없습니다.");
+      }
+      // 새 닉네임 중복 검사
+      const newNickSnap = await tx.get(newNickRef);
+      if (newNickSnap.exists) {
+        throw new HttpsError("already-exists", "이미 사용 중인 별명입니다.");
+      }
+      // nicknames 예약(유일키)
+      tx.set(newNickRef, {
+        nickname: rawNickname,
+        normalizedNickname,
+        uid,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      tx.set(userRef, { nickname: rawNickname }, { merge: true });
+    });
+
+    return { ok: true, nickname: rawNickname, normalizedNickname };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    console.error(e);
+    throw new HttpsError("internal", "setNickname failed");
   }
 });

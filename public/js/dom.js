@@ -1,5 +1,5 @@
-import { loginWithGoogle, onUser, logout, db, auth } from "./app.js";
-import { getBooks, searchNaverBooks } from "./data.js";
+import { loginWithGoogle, onUser, logout, db, auth, createBook, callNaverBooksApi } from "./app.js";
+import { getBooks } from "./data.js";
 import { doc, getDoc, setDoc, query, where, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { toastShow, toastWarning } from "./myToast.js";
 import { showLoginModal } from "./login.js";
@@ -85,31 +85,43 @@ async function saveNewBook() {
     ISBN: ISBNInput?.value?.trim() || "",
   };
   if (!payload.title || !payload.author) return toastShow("제목/저자를 입력하세요.");
-
-  const token = await user.getIdToken();
-  let res;
+  if (payload.title.length > 100) return toastShow("책제목은 최대 100자까지 입력할 수 있습니다.");
+  if (payload.author.length > 100) return toastShow("저자는 최대 100자까지 입력할 수 있습니다.");
+  if (payload.question.length > 300) return toastShow("질문은 최대 300자까지 입력할 수 있습니다.");
   setModalLoading(true);
 
   try {
-    res = await fetch("/createBook", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-  } catch (err) {
-    toastShow("등록 중 오류가 발생했습니다.");
+    const res = await createBook(payload);
+    if (res.ok) {
+      toastShow("책이 등록되었습니다.");
+    }
+  } catch (e) {
+    switch (e?.code) {
+      case "unauthenticated":
+        toastShow("로그인이 필요합니다.");
+        break;
+      case "permission-denied":
+        toastShow("책을 등록하기 위해서는 로그인이 필요합니다.");
+        break;
+      case "invalid-argument":
+        toastShow(e?.message ?? "입력값이 올바르지 않습니다.");
+        break;
+      case "failed-precondition":
+        toastShow(e?.message ?? "닉네임을 설정해야합니다.");
+        break;
+      case "already-exists":
+        toastShow(e?.message ?? "이미 등록된 책입니다.");
+        break;
+      default:
+        toastShow("서버 오류가 발생했습니다.");
+    }
   } finally {
     setModalLoading(false);
   }
 
-  if (!res.ok) return toastShow("등록에 실패했습니다.");
-  toastShow("등록 완료!");
   newPostForm.reset();
   newPostModal?.hide();
-  // 미리보기 초기화가 필요하면 여기서 추가
+  // 다시 book render
   const p = new URLSearchParams(location.search);
   const searchCondition = {
     pageIndex: Number(p.get("pageIndex")) || 1,
@@ -126,15 +138,12 @@ async function saveNewBook() {
 newPostForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  //isbn 기준 where로 중복 확인
   const isbn = ISBNInput?.value?.trim().replace(/[-\s]/g, "") || "";
   if (isbn) {
-    // ISBN이 있으면 중복 체크
     const q = query(collection(db, "books"), where("ISBN", "==", isbn));
     const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
-      // 이미 존재
       return toastShow("이미 등록된 도서입니다.");
     }
   } else {
@@ -161,19 +170,36 @@ const stripTags = (str = "") => str.replace(/<[^>]+>/g, "");
 // 공용 검색 함수
 const runNaverSearch = async (keyword) => {
   if (!keyword) return toastShow("검색어를 입력해주세요.");
+  if (keyword.length > 50) return toastShow("검색어는 최대 50자까지 입력할 수 있습니다.");
+
   naverBtn.disabled = true;
   naverBtn.textContent = "검색 중...";
   naverResultList.innerHTML = `<div class="col-12 text-muted small">불러오는 중...</div>`;
 
   try {
-    const data = await searchNaverBooks(keyword);
-    data.items.forEach((item) => {
-      item.author = item.author.replaceAll("^", ",");
+    const res = await await callNaverBooksApi({ query: keyword });
+    const data = res.data || {};
+
+    (data.items || []).forEach((item) => {
+      item.author = (item.author || "").replaceAll("^", ",");
     });
+
     renderNaverCards(data.items || []);
   } catch (err) {
     console.error(err);
-    toastShow("네이버 검색에 실패했습니다.");
+
+    // callable 에러는 err.code / err.message가 있음
+    switch (err?.code) {
+      case "unauthenticated":
+      case "permission-denied":
+        toastShow("로그인이 필요합니다.");
+        break;
+      case "invalid-argument":
+        toastShow(err?.message ?? "검색어가 올바르지 않습니다.");
+        break;
+      default:
+        toastShow("네이버 검색에 실패했습니다.");
+    }
   } finally {
     naverBtn.disabled = false;
     naverBtn.textContent = "검색";

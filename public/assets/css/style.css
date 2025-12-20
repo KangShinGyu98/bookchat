@@ -202,10 +202,11 @@ a:hover {
 
 .msg {
   max-width: 65%;
-  white-space: pre-wrap; /* 줄바꿈 + 개행 유지 */
+  /* white-space: pre-wrap; 줄바꿈 + 개행 유지 */
   word-break: break-word; /* 긴 단어 강제 줄바꿈 */
   overflow-wrap: anywhere; /* URL 같은 것도 줄바꿈 */
 }
+
 .msg-me {
   color: rgba(68, 68, 68, 0.9); /* 알파값 0.7 (30% 투명) */
   display: flex;

@@ -1,4 +1,4 @@
-import { auth, db, onUser } from "./app.js";
+import { auth, db, onUser, createQuestion, createOrUpdateRating } from "./app.js";
 import {
   doc,
   getDoc,
@@ -67,11 +67,11 @@ async function syncRatingChange() {
   const profileRef = doc(db, "users", user.uid);
   const profileSnap = await getDoc(profileRef);
   const profile = profileSnap.exists() ? profileSnap.data() : {};
-  const nickname = profile.nickname || "익명";
   if (!profile.nickname) return toastShow("별명 설정이 필요합니다.");
+  const nickname = profile.nickname;
   const ratingValue = Number(ratingInput.value.trim());
 
-  if (!Number.isFinite(ratingValue)) {
+  if (!Number.isFinite(ratingValue) || ratingValue < 0 || ratingValue > 5 || !Number.isInteger(ratingValue * 2)) {
     // 잘못된 입력 처리
     return toastShow("올바른 평점을 입력해주세요.");
   }
@@ -79,22 +79,34 @@ async function syncRatingChange() {
   const payload = {
     bookId: slug,
     rating: ratingValue,
-    createdBy: nickname,
-    createdByUid: user.uid,
   };
+  try {
+    const res = await createOrUpdateRating(payload);
 
-  const token = await user.getIdToken();
-  const res = await fetch("/createOrUpdateRating", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) return toastShow("평점 등록에 실패했습니다.");
-  toastShow(`평점 ${ratingInput.value}점이 저장되었습니다.`);
+    if (res?.data?.ok) {
+      toastShow(`평점 ${ratingValue}점이 저장되었습니다.`);
+      return;
+    }
+    toastShow("평점 등록에 실패했습니다.");
+  } catch (e) {
+    switch (e?.code) {
+      case "unauthenticated":
+      case "permission-denied":
+        toastShow("로그인이 필요합니다.");
+        break;
+      case "failed-precondition":
+        toastShow(e?.message ?? "별명 설정이 필요합니다.");
+        break;
+      case "not-found":
+        toastShow(e?.message ?? "책을 찾을 수 없습니다.");
+        break;
+      case "invalid-argument":
+        toastShow(e?.message ?? "올바른 평점을 입력해주세요.");
+        break;
+      default:
+        toastShow("서버 오류가 발생했습니다.");
+    }
+  }
 }
 ratingInput?.addEventListener("input", syncRating); // 드래그 중
 ratingInput?.addEventListener("pointerup", syncRatingChange); // 드래그 완료
@@ -210,7 +222,6 @@ async function initializeSubscription() {
 }
 // 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대
 
-
 function renderMessages(docSnap) {
   // messagesEl.innerHTML = "";
 
@@ -321,7 +332,7 @@ function renderQuestionCard(snap) {
       questionDiv.innerHTML = `
         <div class="question-item">
           <div class="question-text">
-            "${q.question || ""}"
+            "${q.text || ""}"
           </div>
         </div>
       `;
@@ -429,29 +440,44 @@ newQuestionForm?.addEventListener("submit", async (e) => {
 
   const payload = {
     bookId: slug,
-    question: newQuestionInput.value.trim(),
-    createdBy: nickname,
-    createdAt: serverTimestamp(),
-    createdByUid: user.uid,
+    text: newQuestionInput.value.trim(),
   };
-  if (!payload.question) return toastShow("질문 내용을 입력하세요.");
+  if (!payload.text) return toastShow("질문 내용을 입력하세요.");
+  if (payload.text.length > 300) return toastShow("질문은 최대 300자까지 입력할 수 있습니다.");
   if (questionsCollection.length >= 3) return toastShow("질문은 최대 3개까지 등록할 수 있습니다.");
 
   const token = await user.getIdToken();
   setModalLoading(true);
-  const res = await fetch("/createQuestion", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) return toastShow("등록에 실패했습니다.");
+  try {
+    await createQuestion(payload);
+    toastShow("질문이 등록되었습니다.");
+  } catch (e) {
+    switch (e.code) {
+      case "unauthenticated":
+        toastShow("로그인이 필요합니다.");
+        break;
+      case "permission-denied":
+        toastShow("익명 사용자는 질문을 등록할 수 없습니다.");
+        break;
+      case "invalid-argument":
+        toastShow(e.message ?? "입력값이 올바르지 않습니다.");
+        break;
+      case "failed-precondition":
+        toastShow(e.message ?? "질문은 최대 3개까지만 가능합니다.");
+        break;
+      case "already-exists":
+        toastShow(e.message ?? "이미 같은 질문이 있습니다.");
+        break;
+      default:
+        toastShow("서버 오류가 발생했습니다.");
+    }
+  } finally {
+    setModalLoading(false);
+  }
+
   toastShow("등록 완료!");
   newQuestionForm.reset();
   newQuestionModal?.hide();
-  setModalLoading(false);
   // 미리보기 초기화가 필요하면 여기서 추가
 });
 const questionSpinnerContainer = document.getElementById("question-spinner-container");

@@ -2,12 +2,17 @@
   "rules": {
     "mainchatroom": {
       ".read": true,
-      ".write": true
+      "presence": {
+        "users": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        }
+      }
     },
-    "presence":{
+    "presence": {
       ".read": true,
       ".write": true
     }
-    
   }
 }

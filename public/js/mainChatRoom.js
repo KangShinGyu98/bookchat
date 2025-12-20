@@ -47,12 +47,15 @@ chatOpenBtn?.addEventListener("click", () => {
   chatOpenBtn.classList.toggle("d-none", true);
 });
 
-export function joinRoom(user) {
+export async function joinRoom(user) {
   if (!user) return;
   const memberRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  const userData = userDoc.exists() ? userDoc.data() : null;
+  const nickname = userData?.nickname || user.displayName || user.email || "익명";
 
   const memberData = {
-    displayName: user.displayName || "익명",
+    nickname: nickname,
     photoURL: user.photoURL || null,
     isAnonymous: !!user.isAnonymous,
     joinedAt: rtdbServerTimestamp(),
@@ -98,7 +101,7 @@ onUser(async (user) => {
 ///
 
 let unsubscribeMsgs = null;
-
+//todo renderMessages 도 chat 처럼 innerhtml 말고 createElement 로 바꾸기 + 바꾸면서 왜 익명일때 남의 채팅처럼 나오는지 수정
 function renderMessages(snapshot) {
   messagesEl.innerHTML = "";
   snapshot.forEach((docSnap) => {
@@ -123,12 +126,14 @@ function subscribeMessages() {
   unsubscribeMsgs = onSnapshot(q, (snap) => renderMessages(snap));
 }
 
+//todo 메시지작성도 functions 로 옮겨
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const user = auth.currentUser;
   const text = input.value.trim();
   if (!text) return;
   const today = new Date().toISOString().split("T")[0];
+
   await addDoc(collection(db, "chatrooms", today, "messages"), {
     text,
     senderUid: user.isAnonymous ? "익명#" + user.uid.slice(0, 4) : user.uid,
