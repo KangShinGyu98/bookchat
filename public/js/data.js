@@ -11,8 +11,6 @@ let localCache = null; // 로컬 JSON 캐시
  * orderBy: recent|rank|memberCount|old|lowRank|lessMemberCount
  */
 export async function getBooks(searchCondition) {
-  const field = normalizeOrder(searchCondition.orderBy);
-  const offsetIndex = Math.max(searchCondition.pageIndex - 1, 0) * searchCondition.pageSize;
   if (USE_LOCAL) {
     // return getLocalPage(offsetIndex, searchCondition.pageSize, field); 과거 json 데이터
     return getEmulatorPage(searchCondition);
@@ -35,32 +33,6 @@ async function getEmulatorPage(searchCondition) {
     nbPages: 1, // 페이지 1개라고 가정
     nbHits: hits.length, // 전체 개수
     hitsPerPage: hits.length, // 한 페이지에 전부 다
-  };
-}
-
-function normalizeOrder(orderBy) {
-  const map = {
-    recent: "createdAt",
-    rank: "rating",
-    memberCount: "membersCount",
-    lastMessagedAt: "lastMessagedAt",
-  };
-  const field = map[orderBy] || "createdAt";
-  return field;
-}
-
-async function getLocalPage(offsetIndex, pageSize, field, direction = "desc") {
-  if (!localCache) {
-    localCache = await loadFromLocalJson();
-  }
-  const sorted = sortBooks(localCache, field, direction);
-  const start = Math.max(0, offsetIndex);
-  const hits = sorted.slice(start, start + pageSize);
-  return {
-    hits,
-    nbHits: sorted.length,
-    nbPages: Math.max(1, Math.ceil(sorted.length / pageSize)),
-    page: Math.floor(start / pageSize),
   };
 }
 
@@ -128,80 +100,4 @@ async function getFirebasePage(searchCondition) {
   //  - res.nbHits    : 전체 결과 개수
   //  - res.hitsPerPage: 페이지당 개수
   return res;
-}
-
-async function loadFromLocalJson() {
-  try {
-    const res = await fetch(LOCAL_JSON_PATH);
-    if (!res.ok) {
-      return [];
-    }
-    const json = await res.json();
-    return (json.books || []).map(normalizeBook);
-  } catch (err) {
-    return [];
-  }
-}
-
-async function loadFromFirebaseAll(field = "createdAt", direction = "desc") {
-  if (typeof db === "undefined" || typeof collection !== "function") {
-    return [];
-  }
-  const q = query(collection(db, "books"), orderBy(field, direction));
-  const snap = await getDocs(q);
-  const books = [];
-  snap.forEach((docSnap) => {
-    const data = docSnap.data() || {};
-    books.push(
-      normalizeBook({
-        ...data,
-        slug: docSnap.id,
-      })
-    );
-  });
-  return sortBooks(books, field, direction);
-}
-
-function sortBooks(items, field, dir = "desc") {
-  const sign = dir === "asc" ? 1 : -1;
-  const normalize = (v) => {
-    if (v === null || v === undefined) return null;
-    if (v instanceof Date) return v.getTime();
-    return v;
-  };
-  const clone = [...items];
-  clone.sort((a, b) => {
-    const va = normalize(a[field]);
-    const vb = normalize(b[field]);
-    if (va === vb) return 0;
-    if (va === null) return 1;
-    if (vb === null) return -1;
-    return va > vb ? sign : -sign;
-  });
-  return clone;
-}
-
-function normalizeBook(raw) {
-  const toDate = (v) => {
-    if (!v) return null;
-    if (v instanceof Date) return v;
-    if (typeof v.toDate === "function") return v.toDate();
-    const d = new Date(v);
-    return isNaN(d) ? null : d;
-  };
-
-  const membersCount = typeof raw.membersCount === "number" ? raw.membersCount : Array.isArray(raw.members) ? raw.members.length : 0;
-
-  return {
-    slug: raw.slug || raw.title || "",
-    title: raw.title || "",
-    author: raw.author || "",
-    rating: typeof raw.rating === "number" ? raw.rating : null,
-    createdByUid: raw.createdByUid || raw.writer || "",
-    createdAt: toDate(raw.createdAt),
-    lastMessage: raw.lastMessage || null,
-    lastMessagedAt: toDate(raw.lastMessagedAt),
-    questions: Array.isArray(raw.questions) ? raw.questions : [],
-    membersCount,
-  };
 }

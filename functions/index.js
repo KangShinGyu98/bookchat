@@ -277,7 +277,7 @@ exports.onMessage = onDocumentCreated(
   {
     document: "books/{bookId}/messages/{msgId}",
     region: "asia-northeast3", // Firestore 위치와 동일
-    database: "bookchat-database",
+    ...(isEmulator ? {} : { database: "bookchat-database" }),
   },
   async (event) => {
     const snap = event.data;
@@ -554,5 +554,214 @@ exports.setNickname = onCall({ region: "asia-northeast3", enforceAppCheck: proce
     if (e instanceof HttpsError) throw e;
     console.error(e);
     throw new HttpsError("internal", "setNickname failed");
+  }
+});
+exports.subscribeToggleCall = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+  const { bookId, subscribe } = data;
+  const now = Timestamp.now();
+  // 1) auth validation
+  if (!auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") {
+    throw new HttpsError("permission-denied", "닉네임 설정을 위해서는 로그인이 필요합니다.");
+  }
+  const uid = auth.uid;
+  try {
+    await db.runTransaction(async (tx) => {
+      const bookRef = db.collection("books").doc(bookId);
+      const memberRef = bookRef.collection("members").doc(uid);
+      const userRef = db.collection("users").doc(uid);
+      const [memberSnap, userSnap] = await Promise.all([tx.get(memberRef), tx.get(userRef)]);
+      if (!userSnap.exists) {
+        throw new HttpsError("not-found", "유저 정보가 없습니다.");
+      }
+      if (subscribe === "subscribe") {
+        //books/{slug}/members/{uid} 에 없으면 문서생성
+        // 다음 3개 필드 작성
+        // await setDoc(membersRef, {
+        //       joinedAt: serverTimestamp(),
+        //       lastAccessAt: serverTimestamp(),
+        //       subscribe: autoSubscribe === true, // autoSubscribe면 true, 아니면 false
+        //     });
+        //있으면 subscribe 를 true 로 변경
+        // users/{uid} 의 subscribedBooks 에 bookId 추가
+        // const userRef = db.collection("users").doc(uid);
+        // await updateDoc(userRef, {
+        //   subscribedBooks: arrayUnion(bookId),
+        // });
+        // books/{slug} 의 membersCount +1, subscribedMembers +1
+        if (!memberSnap.exists) {
+          // 최초 가입
+          tx.set(memberRef, {
+            joinedAt: now,
+            lastAccessAt: now,
+            subscribe: true,
+          });
+
+          tx.update(bookRef, {
+            membersCount: FieldValue.increment(1),
+            subscribedMembers: FieldValue.increment(1),
+          });
+        } else {
+          const wasSubscribed = memberSnap.data()?.subscribe === true;
+
+          tx.update(memberRef, {
+            subscribe: true,
+            lastAccessAt: now,
+          });
+
+          if (!wasSubscribed) {
+            tx.update(bookRef, {
+              subscribedMembers: FieldValue.increment(1),
+            });
+          }
+        }
+        tx.update(userRef, {
+          subscribedBooks: FieldValue.arrayUnion(bookId),
+        });
+      } else {
+        //books/{slug}/members/{uid} 에 없으면 오류
+        //있으면 subscribe 를 false 로 변경
+        // users/{uid} 의 subscribedBooks 에 bookId 제거
+        // const userRef = db.collection("users").doc(uid);
+        // await updateDoc(userRef, {
+        //   subscribedBooks: arrayRemove(bookId),
+        // });
+        // books/{slug} 의 subscribedMembers -1
+        if (!memberSnap.exists) {
+          throw new HttpsError("not-found", "구독 정보가 없습니다.");
+        }
+
+        const wasSubscribed = memberSnap.data()?.subscribe === true;
+
+        tx.update(memberRef, {
+          subscribe: false,
+          lastAccessAt: now,
+        });
+
+        tx.update(userRef, {
+          subscribedBooks: FieldValue.arrayRemove(bookId),
+        });
+
+        if (wasSubscribed) {
+          tx.update(bookRef, {
+            subscribedMembers: FieldValue.increment(-1),
+          });
+        }
+      }
+    });
+
+    return { ok: true, subscribeState: data?.subscribe };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    console.error(e);
+    throw new HttpsError("internal", "subscribeToggleCall failed");
+  }
+});
+
+exports.sendMessage = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+  }
+  const provider = auth.token?.firebase?.sign_in_provider;
+  if (provider === "anonymous") {
+    throw new HttpsError("permission-denied", "로그인이 필요합니다.");
+  }
+  const uid = auth.uid;
+  const { bookId, text } = data || {};
+
+  if (typeof text !== "string") {
+    throw new HttpsError("invalid-argument", "입력이 올바르지 않습니다.");
+  }
+
+  if (!text) {
+    throw new HttpsError("invalid-argument", "빈 메시지는 보낼 수 없습니다.");
+  }
+
+  // 길이 제한 (원하는 값으로 조정)
+  if (text.length > 1000) {
+    throw new HttpsError("invalid-argument", "메시지는 최대 1000자까지 입력할 수 있습니다.");
+  }
+  // ✅ validation 끝
+
+  try {
+    // senderName 신뢰성 확보(클라 displayName 믿지 않음)
+    const userSnap = await db.collection("users").doc(uid).get();
+    if (!userSnap.exists || !userSnap.data().nickname) {
+      throw new HttpsError("failed-precondition", "질문을 등록하려면 닉네임을 설정해야합니다.");
+    }
+    const nickname = userSnap.data()?.nickname;
+
+    // 메시지 저장
+    await db.collection("books").doc(bookId).collection("messages").add({
+      text: text,
+      senderUid: uid,
+      senderName: nickname,
+      createdAt: Timestamp.now(), // 서버 시간 고정
+      // clientCreatedAt: Date.now(), // 필요하면 사용(선택)
+    });
+
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    logger.error("sendMessage failed", e);
+    throw new HttpsError("internal", "sendMessage failed");
+  }
+});
+
+exports.sendMainChatMessage = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
+  const { data, auth } = request;
+
+  // ✅ validation 시작
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "일시적 장애입니다. 새로고침 후 이용해 주세요.");
+  }
+
+  const uid = auth.uid;
+  const { text } = data || {};
+  const roomDate = new Date().toISOString().split("T")[0];
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+  }
+
+  if (typeof text !== "string") {
+    throw new HttpsError("invalid-argument", "입력이 올바르지 않습니다.");
+  }
+
+  if (!text) {
+    throw new HttpsError("invalid-argument", "빈 메시지는 보낼 수 없습니다.");
+  }
+
+  // 길이 제한 (원하는 값으로 조정)
+  if (text.length > 100) {
+    throw new HttpsError("invalid-argument", "메시지는 최대 100자까지 입력할 수 있습니다.");
+  }
+  // ✅ validation 끝
+
+  try {
+    // senderName 신뢰성 확보(클라 displayName 믿지 않음)
+    const userSnap = await db.collection("users").doc(uid).get();
+    const nickname = userSnap.exists ? userSnap.data()?.nickname : null;
+
+    const senderName = nickname || `익명#${uid.slice(0, 4)}`;
+
+    // 메시지 저장
+    await db.collection("chatrooms").doc(roomDate).collection("messages").add({
+      text: text,
+      senderUid: uid,
+      senderName,
+      createdAt: Timestamp.now(), // 서버 시간 고정
+      // clientCreatedAt: Date.now(), // 필요하면 사용(선택)
+    });
+
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    logger.error("sendMessage failed", e);
+    throw new HttpsError("internal", "sendMessage failed");
   }
 });

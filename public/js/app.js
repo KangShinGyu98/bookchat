@@ -11,20 +11,10 @@ import {
   signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signOut
+  signOut,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import {
-  connectDatabaseEmulator,
-  get,
-  getDatabase,
-  onDisconnect,
-  ref,
-  remove
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import {
-  connectFirestoreEmulator,
-  getFirestore
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { connectDatabaseEmulator, get, getDatabase, onDisconnect, ref, remove } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { connectFirestoreEmulator, getFirestore } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
 export const firebaseConfig = {
   apiKey: "AIzaSyA9bkq2Zgs2yWfCBfgCl1GdSDehMY3ZGRs",
@@ -64,6 +54,10 @@ export const createQuestion = httpsCallable(functions, "createQuestion");
 export const callNaverBooksApi = httpsCallable(functions, "callNaverBooksApi");
 export const setNickname = httpsCallable(functions, "setNickname");
 export const createOrUpdateRating = httpsCallable(functions, "createOrUpdateRating");
+export const subscribeToggleCall = httpsCallable(functions, "subscribeToggleCall");
+export const sendMainChatMessage = httpsCallable(functions, "sendMainChatMessage");
+export const sendMessage = httpsCallable(functions, "sendMessage");
+
 //래핑 함수
 export function onUser(cb) {
   return onAuthStateChanged(auth, cb);

@@ -222,15 +222,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (nicknameModal) nicknameModal.show();
   }
 
-  onUser((user) => {
+  onUser(async (user) => {
     if (loginOpenBtn) {
       loginOpenBtn.innerHTML =
         user && !user.isAnonymous ? `<i class="bi bi-box-arrow-right"></i> 로그아웃` : `<i class="bi bi-box-arrow-in-right"></i> 로그인`;
       if (!user || user.isAnonymous) nicknameContainer.textContent = "";
     }
-  });
-
-  onUser(async (user) => {
     if (!user) {
       signInAnonymously(auth).catch((error) => {
         console.error("Anonymous sign-in error", error);
@@ -253,8 +250,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       console.error("프로필 로드 실패:", err);
     }
+    initializeNotification();
   });
-  onUser(() => initializeNotification());
 });
 const notificationToggle = document.getElementById("notificationToggle") ?? null;
 const notificationContainer = document.getElementById("notification-container") ?? null;
@@ -298,27 +295,22 @@ async function onNotificationClicked(noti) {
   }
 }
 async function renderNotifications(notifications) {
-  // 이제 notifications 안에는 이런 형태의 데이터가 존재함:
-  // {
-  //   id: "xxxxx",
-  //   bookId: "BWLyZRAKRz5eHeQ1QvbM",
-  //   msgPreview: "테스트 메시지 22",
-  //   createdAt: ...,
-  //   read: false,
-  //   bookImage: "https://....jpg"   <-- books/{bookId} 의 imageUrl
-  // }
+  // 알림 0개면 안내
+  if (!notifications?.length) {
+    if (!notificationContainer) return;
 
-  // 스피너 제거
-
-  // 알림이 0개면 안내 메시지 표시
-  if (!notifications.length) {
-    notificationContainer.innerHTML = `
-    <div class="p-3 text-center text-muted small">알림이 없습니다.</div>
-    `;
+    notificationContainer.textContent = "";
+    const empty = document.createElement("div");
+    empty.className = "p-3 text-center text-muted small";
+    empty.textContent = "알림이 없습니다.";
+    notificationContainer.appendChild(empty);
     return;
   } else {
     if (notificationContainer) notificationContainer.classList.add("d-none"); // 미리보기 숨기기
   }
+
+  // (중복 렌더 방지) 기존 메뉴 비우기
+  if (notificationMenu) notificationMenu.textContent = "";
 
   notifications.forEach((noti) => {
     const timeDiff = getTimeDiff(noti.createdAt);
@@ -326,37 +318,49 @@ async function renderNotifications(notifications) {
     const item = document.createElement("button");
     item.type = "button";
 
-    // 읽음 여부
     const readClass = noti.read ? "read" : "";
     item.className = `dropdown-item d-flex align-items-center gap-2 ${readClass}`;
+
     const imageSrc = noti.bookImageUrl || getRandomBookCover();
 
-    item.innerHTML = `
-      <img
-        src="${imageSrc}"
-        alt="책 이미지"
-        class="notification-book-image me-2"
-        width="50"
-        height="65"
-      />
-      <div class="dropdown-text">
-        <div class="text-muted text-xs notification-text-online-ellipsis">${noti.bookTitle}</div>
-        <div class="notification-text-ellipsis small">
-          ${noti.msgPreview}
-        </div>
-        <span class="text-muted text-xs notification-text-online-ellipsis">${timeDiff} · ${noti.senderName ?? "익명"}</span>
-      </div>
-    `;
+    // img
+    const img = document.createElement("img");
+    img.src = imageSrc;
+    img.alt = "책 이미지";
+    img.className = "notification-book-image me-2";
+    img.width = 50;
+    img.height = 65;
 
-    // 클릭 시 읽음 처리 (read = true 업데이트) 등의 로직 추가 가능
+    // text wrapper
+    const textWrap = document.createElement("div");
+    textWrap.className = "dropdown-text";
+
+    // title line (bookTitle)
+    const titleLine = document.createElement("div");
+    titleLine.className = "text-muted text-xs notification-text-online-ellipsis";
+    titleLine.textContent = noti.bookTitle || "-";
+
+    // preview line (msgPreview)
+    const previewLine = document.createElement("div");
+    previewLine.className = "notification-text-ellipsis small";
+    previewLine.textContent = noti.msgPreview || "";
+
+    // meta line (timeDiff · senderName)
+    const metaLine = document.createElement("span");
+    metaLine.className = "text-muted text-xs notification-text-online-ellipsis";
+    metaLine.textContent = `${timeDiff} · ${noti.senderName ?? "익명"}`;
+
+    textWrap.append(titleLine, previewLine, metaLine);
+    item.append(img, textWrap);
+
     item.addEventListener("click", () => {
-      // todo 읽음처리 및 location.href 이동
       onNotificationClicked(noti);
     });
 
     notificationMenu.appendChild(item);
   });
 }
+
 function getRandomBookCover() {
   const randomIndex = Math.floor(Math.random() * defaultCovers.length);
   return `/assets/images/default_book_covers/${defaultCovers[randomIndex]}`;

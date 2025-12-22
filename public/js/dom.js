@@ -177,7 +177,7 @@ const runNaverSearch = async (keyword) => {
   naverResultList.innerHTML = `<div class="col-12 text-muted small">불러오는 중...</div>`;
 
   try {
-    const res = await await callNaverBooksApi({ query: keyword });
+    const res = await callNaverBooksApi({ query: keyword });
     const data = res.data || {};
 
     (data.items || []).forEach((item) => {
@@ -217,30 +217,63 @@ const renderNaverCards = (items) => {
     const title = stripTags(item.title);
     const author = stripTags(item.author);
     const img = item.image || "";
+
+    const col = document.createElement("div");
+    col.className = "col-12 col-md-6 col-lg-4";
+
     const card = document.createElement("div");
-    card.className = "col-12 col-md-6 col-lg-4";
-    card.innerHTML = `
-      <div class="card h-100 hover-shadow" style="cursor:pointer;">
-        ${img ? `<img src="${img}" class="card-img-top" alt="${title}" style="object-fit:cover;height:200px;">` : ""}
-        <div class="card-body">
-          <h6 class="card-title text-truncate">${title || "-"}</h6>
-          <p class="card-text text-muted text-truncate mb-1">${author || "-"}</p>
-          <small class="text-muted">${item.publisher || ""}</small>
-        </div>
-      </div>`;
-    card.onclick = () => {
+    card.className = "card h-100 hover-shadow";
+    card.style.cursor = "pointer";
+
+    // 이미지
+    if (img) {
+      const imgEl = document.createElement("img");
+      imgEl.src = img;
+      imgEl.alt = title;
+      imgEl.className = "card-img-top";
+      imgEl.style.objectFit = "cover";
+      imgEl.style.height = "200px";
+      card.appendChild(imgEl);
+    }
+
+    // body
+    const body = document.createElement("div");
+    body.className = "card-body";
+
+    const titleEl = document.createElement("h6");
+    titleEl.className = "card-title text-truncate";
+    titleEl.textContent = title || "-";
+
+    const authorEl = document.createElement("p");
+    authorEl.className = "card-text text-muted text-truncate mb-1";
+    authorEl.textContent = author || "-";
+
+    const publisherEl = document.createElement("small");
+    publisherEl.className = "text-muted";
+    publisherEl.textContent = item.publisher || "";
+
+    body.append(titleEl, authorEl, publisherEl);
+    card.appendChild(body);
+    col.appendChild(card);
+
+    // 클릭 이벤트
+    col.onclick = () => {
       if (titleInput) titleInput.value = title;
       if (authorInput) authorInput.value = author;
-      if (imgInput) imgInput.value = item.image || "";
+      if (imgInput) imgInput.value = img;
+
       if (imgPreview) {
-        imgPreview.src = item.image || "";
-        imgPreview.classList.toggle("d-none", !item.image);
+        imgPreview.src = img;
+        imgPreview.classList.toggle("d-none", !img);
       }
-      if (ISBNInput) ISBNInput.value = item.isbn ? item.isbn : "";
+
+      if (ISBNInput) ISBNInput.value = item.isbn || "";
+
       toastShow("입력이 성공적으로 완료되었습니다.");
       naverSearchModal?.hide();
     };
-    naverResultList.appendChild(card);
+
+    naverResultList.appendChild(col);
   });
 };
 
@@ -326,28 +359,56 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function renderBooks(books) {
   const tbody = document.getElementById("boardBody");
-  // if (!tbody) {
-  //   console.table(books);
-  //   return;
-  // }
+  if (!tbody) return;
 
-  tbody.innerHTML = "";
+  tbody.textContent = "";
+
   books.forEach((book) => {
-    const ratingText = typeof book.ratingAvg === "number" ? book.ratingAvg : "-";
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="text-center text-truncate" style="max-width: 50px;">${ratingText}</td>
-      <td class="text-truncate" style="max-width: 516px;"><a href=chat.html?book=${encodeURIComponent(book.objectID)}>${book.title || "-"}</a></td>
-      <td class="text-truncate" style="max-width: 160px;">${book.author || "-"}</td>
-      <td class="text-truncate" style="max-width: 120px;">${book.createdByName || "-"}</td>
-      <td class="text-center text-truncate" style="max-width: 90px;">${formatDate(book.createdAt)}</td>
-      <td class="text-center text-truncate" style="max-width: 60px;">${book.subscribedMembers ?? 0}</td>
-    `;
-    // tr.addEventListener("click", () => {
-    //   if (book.slug) {
-    //     location.href = `chat.html?book=\${encodeURIComponent(book.slug)}`;
-    //   }
-    // });
+
+    // rating
+    const tdRating = document.createElement("td");
+    tdRating.className = "text-center text-truncate";
+    tdRating.style.maxWidth = "50px";
+    tdRating.textContent = typeof book.ratingAvg === "number" ? book.ratingAvg : "-";
+
+    // title + link
+    const tdTitle = document.createElement("td");
+    tdTitle.className = "text-truncate";
+    tdTitle.style.maxWidth = "516px";
+
+    const link = document.createElement("a");
+    link.href = `chat.html?book=${encodeURIComponent(book.objectID)}`;
+    link.textContent = book.title || "-";
+
+    tdTitle.appendChild(link);
+
+    // author
+    const tdAuthor = document.createElement("td");
+    tdAuthor.className = "text-truncate";
+    tdAuthor.style.maxWidth = "160px";
+    tdAuthor.textContent = book.author || "-";
+
+    // created by
+    const tdCreator = document.createElement("td");
+    tdCreator.className = "text-truncate";
+    tdCreator.style.maxWidth = "120px";
+    tdCreator.textContent = book.createdByName || "-";
+
+    // date
+    const tdDate = document.createElement("td");
+    tdDate.className = "text-center text-truncate";
+    tdDate.style.maxWidth = "90px";
+    tdDate.textContent = formatDate(book.createdAt);
+
+    // subscribed count
+    const tdSubs = document.createElement("td");
+    tdSubs.className = "text-center text-truncate";
+    tdSubs.style.maxWidth = "60px";
+    tdSubs.textContent = book.subscribedMembers ?? 0;
+
+    tr.append(tdRating, tdTitle, tdAuthor, tdCreator, tdDate, tdSubs);
+
     tbody.appendChild(tr);
   });
 }

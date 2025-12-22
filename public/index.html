@@ -250,7 +250,7 @@
     <button type="button" class="btn btn-sm btn-outline-secondary chat-widget-container-open-btn d-none" id="chat-widget-container-open-btn">
       <i class="bi bi-plus-lg"></i>
     </button>
-    <!-- 메인 화면 채팅창 위젯 -->
+    <!-- 메인 화면 채팅창 위젯 mainchatroom -->
     <div class="card text-center chat-widget-container" id="chat-widget-container">
       <div class="card-header d-flex justify-content-between bg-secondary">
         <span id="chat-card-member-count"> 접속인원 </span>
@@ -259,7 +259,14 @@
       <div class="card-body" id="messages"></div>
       <div class="card-footer bg-secondary">
         <form class="input-group input-group-sm w-100" id="chatForm">
-          <input type="search" class="form-control form-control-sm rounded-start" name="chatInput" id="chatInput" placeholder="메시지 입력..." />
+          <input
+            type="search"
+            class="form-control form-control-sm rounded-start"
+            name="chatInput"
+            id="chatInput"
+            placeholder="메시지 입력..."
+            autocomplete="off"
+          />
           <button class="btn btn-sm btn-outline-secondary bg-success" type="submit" id="chatInputBtn">입력</button>
         </form>
       </div>
@@ -275,6 +282,6 @@
     <script type="module" src="./js/dom.js"></script>
     <script type="module" src="./js/login.js"></script>
     <script type="module" src="./js/mainChatRoom.js"></script>
-    <script type="module" src="./js/autocomplete.js"></script>  
+    <script type="module" src="./js/autocomplete.js"></script>
   </body>
 </html>

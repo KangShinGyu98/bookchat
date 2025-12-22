@@ -3,7 +3,7 @@ import {
   onValue,
   ref,
   serverTimestamp as rtdbServerTimestamp,
-  set
+  set,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 import {
   addDoc,
@@ -13,20 +13,14 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { auth, db, onUser, rtdb } from "./app.js";
+import { auth, db, onUser, rtdb, sendMainChatMessage } from "./app.js";
+import { toastShow } from "./myToast.js";
 
-const params = new URLSearchParams(location.search);
-const bookTitleEl = document.getElementById("bookTitle");
-const bookMetaEl = document.getElementById("bookMeta");
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("chatForm");
 const input = document.getElementById("chatInput");
-const unSubscribeBtn = document.getElementById("unSubscribeBtn");
-const userArea = document.getElementById("userArea");
-const loginBtn = document.getElementById("loginBtn");
-const memberCountSpan = document.getElementById("chat-card-member-count");
 const chatFoldBtn = document.getElementById("chat-fold-btn");
 const chatWidgetContainer = document.getElementById("chat-widget-container");
 const chatOpenBtn = document.getElementById("chat-widget-container-open-btn");
@@ -47,7 +41,7 @@ export async function joinRoom(user) {
   const memberRef = ref(rtdb, `mainchatroom/presence/users/${user.uid}`);
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const userData = userDoc.exists() ? userDoc.data() : null;
-  const nickname = userData?.nickname || user.displayName || user.email || "익명";
+  const nickname = userData?.nickname || "익명";
 
   const memberData = {
     nickname: nickname,
@@ -86,10 +80,10 @@ export function setupChatUI(user) {
     memberCountEl.textContent = `접속인원 ${count}명`;
   });
 }
-onUser((user) => joinRoom(user));
-onUser(async (user) => {
+onUser((user) => {
   if (user) {
     setupChatUI(user);
+    joinRoom(user);
   }
 });
 
@@ -98,19 +92,35 @@ onUser(async (user) => {
 let unsubscribeMsgs = null;
 //todo renderMessages 도 chat 처럼 innerhtml 말고 createElement 로 바꾸기 + 바꾸면서 왜 익명일때 남의 채팅처럼 나오는지 수정
 function renderMessages(snapshot) {
-  messagesEl.innerHTML = "";
+  if (!messagesEl) return;
+
+  messagesEl.textContent = "";
+
   snapshot.forEach((docSnap) => {
     const m = docSnap.data();
     const isMe = auth.currentUser && m.senderUid === auth.currentUser.uid;
-    const div = document.createElement("div");
-    div.className = `d-flex ${isMe ? "justify-content-end" : "justify-content-start"}`;
-    div.innerHTML = `
-      <div class="msg ${isMe ? "msg-me" : "msg-other"}">
-        <div class="text-xs text-muted  ${isMe ? "text-end" : "text-start"}">${m.senderName || "익명"}</div>
-        <div class="text-start mb-1 small">${m.text || ""}</div>
-      </div>`;
-    messagesEl.appendChild(div);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = `d-flex ${isMe ? "justify-content-end" : "justify-content-start"}`;
+
+    const msgBox = document.createElement("div");
+    msgBox.className = `msg ${isMe ? "msg-me" : "msg-other"}`;
+
+    // sender name
+    const senderEl = document.createElement("div");
+    senderEl.className = `text-xs text-muted ${isMe ? "text-end" : "text-start"}`;
+    senderEl.textContent = m.senderName || "익명";
+
+    // message text
+    const textEl = document.createElement("div");
+    textEl.className = "text-start mb-1 small";
+    textEl.textContent = m.text || "";
+
+    msgBox.append(senderEl, textEl);
+    wrapper.appendChild(msgBox);
+    messagesEl.appendChild(wrapper);
   });
+
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
@@ -125,27 +135,39 @@ function subscribeMessages() {
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const user = auth.currentUser;
-  const text = input.value.trim();
+  if (!user) {
+    alert("일시적 오류입니다. 새로고침 후 이용해주세요.");
+    location.reload();
+    return;
+  }
+  const text = input.value;
   if (!text) return;
-  const today = new Date().toISOString().split("T")[0];
+  if (text.length > 100) {
+    toastShow("메시지는 최대 100자까지 입력할 수 있습니다.");
+    return;
+  }
 
-  await addDoc(collection(db, "chatrooms", today, "messages"), {
-    text,
-    senderUid: user.isAnonymous ? "익명#" + user.uid.slice(0, 4) : user.uid,
-    senderName: user.displayName || "익명#" + user.uid.slice(0, 4),
-    createdAt: serverTimestamp(),
-  });
-  input.value = "";
+  try {
+    // callable로 메시지 전송
+    const res = await sendMainChatMessage({ text });
+
+    if (res?.data?.ok) {
+      input.value = "";
+    }
+  } catch (err) {
+    console.error("메시지 전송 실패:", err);
+
+    switch (err?.code) {
+      case "invalid-argument":
+        toastShow(err?.message ?? "메시지 입력값이 올바르지 않습니다.");
+        break;
+      case "resource-exhausted":
+        toastShow("메시지를 너무 빠르게 보냈습니다. 잠시 후 다시 시도하세요.");
+        break;
+      default:
+        toastShow("서버 오류가 발생했습니다.");
+    }
+  }
 });
-
-// unSubscribeBtn.addEventListener("click", async () => {
-//   const user = auth.currentUser && !auth.currentUser.isAnonymous;
-//   if (!user) {
-//     alert("로그인 필요");
-//     return;
-//   }
-//   await deleteDoc(doc(db, "books", slug, "members", user.uid));
-//   location.href = "index.html";
-// });
 
 subscribeMessages();
