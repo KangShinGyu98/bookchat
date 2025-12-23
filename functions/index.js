@@ -29,7 +29,7 @@
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 
-const { defineString } = require("firebase-functions/params");
+const { defineSecret } = require("firebase-functions/params");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 
 const logger = require("firebase-functions/logger");
@@ -52,15 +52,15 @@ const db = isEmulator ? getFirestore(app) : getFirestore(app, "bookchat-database
 const rtdb = getDatabase(app);
 
 // 🔹 환경 변수 (Firebase Functions params)
-const client_id = defineString("NAVER_CLIENT_ID");
-const client_secret = defineString("NAVER_CLIENT_SECRET");
-
+const NAVER_CLIENT_ID = defineSecret("NAVER_CLIENT_ID");
+const NAVER_CLIENT_SECRET = defineSecret("NAVER_CLIENT_SECRET");
+const RECAPTCHA_SECRET_KEY = defineSecret("RECAPTCHA_SECRET_KEY");
 const allowedOrigins = ["http://127.0.0.1:5005", "https://book-chat-da2d6.web.app"];
 
 exports.callNaverBooksApi = onCall(
   {
     region: "asia-northeast3",
-    secrets: [client_id, client_secret],
+    secrets: [NAVER_CLIENT_ID, NAVER_CLIENT_SECRET],
     enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true",
   },
   async (request) => {
@@ -92,8 +92,8 @@ exports.callNaverBooksApi = onCall(
 
       const r = await fetch(url, {
         headers: {
-          "X-Naver-Client-Id": client_id.value(),
-          "X-Naver-Client-Secret": client_secret.value(),
+          "X-Naver-Client-Id": NAVER_CLIENT_ID.value(),
+          "X-Naver-Client-Secret": NAVER_CLIENT_SECRET.value(),
         },
       });
 

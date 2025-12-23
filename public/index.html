@@ -16,261 +16,258 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
   </head>
   <body class="bg-primary">
-    <header class="py-3 text-center">
-      <div class="container">
-        <a href="index.html" class="text-decoration-none text-dark">
-          <h1 class="display-6 fw-bold mb-0">읽고싶은 책을 읽고, 하고싶은 말을 하다.</h1>
-        </a>
-      </div>
-    </header>
-    <form action="#" method="get" id="searchForm">
-      <section>
-        <div class="border-top border-bottom py-1">
-          <div class="main-container d-flex flex-wrap align-items-center justify-content-between ps-3 pe-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="input-group input-group-sm">
-                <label class="visually-hidden" for="searchFilter">검색 범위</label>
+    <main>
+      <header class="py-3 text-center">
+        <div class="container">
+          <a href="index.html" class="text-decoration-none text-dark">
+            <h1 class="display-6 fw-bold mb-0">읽고싶은 책을 읽고, 하고싶은 말을 하다.</h1>
+          </a>
+        </div>
+      </header>
+      <form action="#" method="get" id="searchForm">
+        <section>
+          <div class="border-top border-bottom py-1 bg-secondary">
+            <div class="main-container d-flex flex-wrap align-items-center justify-content-between ps-3 pe-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="input-group input-group-sm">
+                  <label class="visually-hidden" for="searchFilter">검색 범위</label>
+                  <div class="position-relative">
+                    <select class="form-select form-select-sm flex-shrink-0 rounded-start select-no-arrow" name="searchFilter" id="searchFilter">
+                      <option value="all" selected>전체</option>
+                      <option value="title">책 제목</option>
+                      <option value="author">작가</option>
+                      <option value="writer">작성자</option>
+                    </select>
+                    <span class="select-icon">
+                      <i class="bi bi-chevron-down"></i>
+                    </span>
+                  </div>
+                  <div class="autocomplete-wrap">
+                    <input
+                      type="search"
+                      class="form-control form-control-sm"
+                      name="searchInput"
+                      id="searchInput"
+                      placeholder="책 제목, 작가, 작성자를 검색하세요"
+                      aria-label="검색어 입력"
+                      autocomplete="off"
+                    />
+                    <div id="autocomplete" class="autocomplete"></div>
+                  </div>
+
+                  <button class="btn btn-sm btn-outline-secondary" type="button" id="searchFilterButton">검색</button>
+                </div>
+              </div>
+              <div class="d-flex gap-1">
+                <div class="d-flex justify-content-center align-items-center">
+                  <span class="nickname-badge small text-muted" id="nickname-badge"></span>
+                </div>
+                <!-- 🔔 알림 벨 Dropdown -->
+                <div class="dropdown me-2">
+                  <button class="btn btn-sm position-relative" id="notificationBell" data-bs-toggle="dropdown" aria-expanded="false" type="button">
+                    <i class="bi bi-bell"></i>
+                    <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-notification d-none">
+                    </span>
+                  </button>
+                  <div class="dropdown-menu notification-menu p-0 shadow" aria-labelledby="notificationBell" id="notification-menu">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span class="text-muted small p-3">알림</span>
+
+                      <!-- Bootstrap Switch 대신 form-check form-switch -->
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="notificationToggle" checked />
+                      </div>
+                    </div>
+                    <div class="dropdown-divider m-0"></div>
+                    <div class="spinner-container" id="notification-container">
+                      <div class="spinner-border text-secondary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" id="loginOpenBtn" type="button">
+                  <i class="bi bi-box-arrow-in-right m-1"></i> 로그인
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <main class="main-container my-5">
+          <section class="mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="">
+              <div class="input-group input-group-sm d-flex align-items-center">
+                <label class="text-muted px-2">정렬</label>
                 <div class="position-relative">
-                  <select class="form-select form-select-sm flex-shrink-0 rounded-start select-no-arrow" name="searchFilter" id="searchFilter">
-                    <option value="all" selected>전체</option>
-                    <option value="title">책 제목</option>
-                    <option value="author">작가</option>
-                    <option value="writer">작성자</option>
+                  <select class="form-select form-select-sm flex-shrink-0 rounded-start select-no-arrow" name="orderBy" id="orderBy">
+                    <option value="recent" selected>최신순</option>
+                    <option value="rank">평점순</option>
+                    <option value="memberCount">멤버순</option>
+                    <option value="lastMessagedAt">최근 대화</option>
                   </select>
                   <span class="select-icon">
                     <i class="bi bi-chevron-down"></i>
                   </span>
                 </div>
-                <div class="autocomplete-wrap">
-                  <input
-                    type="search"
-                    class="form-control form-control-sm"
-                    name="searchInput"
-                    id="searchInput"
-                    placeholder="책 제목, 작가, 작성자를 검색하세요"
-                    aria-label="검색어 입력"
-                    autocomplete="off"
-                  />
-                  <div id="autocomplete" class="autocomplete"></div>
-                </div>
-
-                <button class="btn btn-sm btn-outline-secondary" type="button" id="searchFilterButton">검색</button>
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="orderByButton">조회</button>
               </div>
             </div>
-            <div class="d-flex gap-1">
-              <div class="d-flex justify-content-center align-items-center">
-                <span class="nickname-badge small text-muted" id="nickname-badge"></span>
-              </div>
-              <!-- 🔔 알림 벨 Dropdown -->
-              <div class="dropdown me-2">
-                <button class="btn btn-sm position-relative" id="notificationBell" data-bs-toggle="dropdown" aria-expanded="false" type="button">
-                  <i class="bi bi-bell"></i>
-                  <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-notification d-none">
-                  </span>
-                </button>
-                <div class="dropdown-menu notification-menu p-0 shadow" aria-labelledby="notificationBell" id="notification-menu">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted small p-3">알림</span>
-
-                    <!-- Bootstrap Switch 대신 form-check form-switch -->
-                    <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" role="switch" id="notificationToggle" checked />
-                    </div>
+            <div class="d-flex gap-2 align-items-center">
+              <!-- <button class="btn btn-sm" id="toastbtn" type="button">토스트</button> -->
+              <button class="btn btn-sm btn-outline-secondary" type="button" id="newPostOpenBtn"><i class="bi bi-plus-lg"></i> 새 글 작성</button>
+              <label class="text-muted">페이지당</label>
+              <select class="form-select form-select-sm" style="width: 90px" name="pageSize" id="pageSizeSelect">
+                <option value="15">15</option>
+                <option value="20">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </section>
+          <section class="">
+            <div class="table-responsive">
+              <table class="table align-middle mb-0 board-table border">
+                <thead>
+                  <tr>
+                    <th style="width: 50px" class="text-center">평점</th>
+                    <th style="width: 516px">책 제목</th>
+                    <th style="width: 160px">작가</th>
+                    <th style="width: 120px">작성자</th>
+                    <th style="width: 90px" class="text-center">작성일</th>
+                    <th style="width: 60px" class="text-center">멤버</th>
+                  </tr>
+                </thead>
+                <tbody id="boardBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <!--페이지 네비게이션-->
+          <section class="mt-3 d-flex justify-content-center">
+            <nav aria-label="페이지" id="page-navigation">
+              <ul class="pagination pagination-sm justify-content-center mb-0"></ul>
+            </nav>
+          </section>
+        </main>
+      </form>
+      <!-- 새 글 작성 모달, 새 글 모달 -->
+      <div class="modal fade" id="newPostModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content position-relative" id="newPostModalContent">
+            <div id="modalLoadingOverlay" class="modal-loading-overlay d-none">
+              <div class="spinner-border" role="status" aria-label="loading"></div>
+            </div>
+            <div class="modal-header">
+              <h5 class="modal-title">새 글 작성</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="newPostForm" class="d-flex flex-column gap-3">
+                <div>
+                  <label class="form-label fw-bold">책 제목</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="newTitle" placeholder="데미안" required autocomplete="off" />
+                    <button type="button" class="btn btn-outline-secondary" id="openNaverSearchBtn">네이버 검색</button>
                   </div>
-                  <div class="dropdown-divider m-0"></div>
-                  <div class="spinner-container" id="notification-container">
-                    <div class="spinner-border text-secondary" role="status">
-                      <span class="visually-hidden">Loading...</span>
-                    </div>
+                </div>
+                <div>
+                  <label class="form-label fw-bold">저자</label>
+                  <input type="text" class="form-control" id="newAuthor" placeholder="헤르만 헤세" required autocomplete="off" />
+                </div>
+                <div>
+                  <label class="form-label fw-bold">대화 주제(선택)</label>
+                  <input type="text" class="form-control" id="newQuestion" placeholder="ex) 데미안은 실존 인물일까요?" autocomplete="off" />
+                </div>
+                <div class="d-none">
+                  <label class="form-label fw-bold">ISBN</label>
+                  <input type="text" class="form-control" id="ISBN" autocomplete="off" />
+                </div>
+                <div class="d-flex flex-column align-items-start">
+                  <label class="form-label d-none">표지</label>
+                  <input type="hidden" id="newImageUrl" />
+                  <img id="newImagePreview" class="img-fluid rounded d-none" alt="표지 미리보기" />
+                </div>
+                <div class="d-flex gap-2">
+                  <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>
+                  <button id="cancelBookBtn" type="button" class="btn btn-outline-secondary w-100">취소</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- isbn 없을 때 경고 모달 -->
+      <div class="modal fade" id="ISBNModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-success p-2">
+              <h5 class="modal-title">경고</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-primary">
+              <form id="ISBNForm" class="d-flex flex-column gap-3">
+                <div>
+                  <div class="">
+                    <span>검색 기능을 사용해서 책을 등록하기를 권장하고 있습니다. 그래도 등록하시겠습니까?</span>
                   </div>
                 </div>
-              </div>
-              <button class="btn btn-sm btn-outline-secondary" id="loginOpenBtn" type="button">
-                <i class="bi bi-box-arrow-in-right m-1"></i> 로그인
-              </button>
-              <button class="btn btn-sm btn-outline-secondary" id="testUserLoginBtn" type="button">
-                <i class="bi bi-box-arrow-in-right m-1"></i> 테스트 유저 로그인
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <main class="main-container my-5">
-        <section class="mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div class="">
-            <div class="input-group input-group-sm d-flex align-items-center">
-              <label class="text-muted px-2">정렬</label>
-              <div class="position-relative">
-                <select class="form-select form-select-sm flex-shrink-0 rounded-start select-no-arrow" name="orderBy" id="orderBy">
-                  <option value="recent" selected>최신순</option>
-                  <option value="rank">평점순</option>
-                  <option value="memberCount">멤버순</option>
-                  <option value="lastMessagedAt">최근 대화</option>
-                </select>
-                <span class="select-icon">
-                  <i class="bi bi-chevron-down"></i>
-                </span>
-              </div>
-              <button class="btn btn-sm btn-outline-secondary" type="button" id="orderByButton">조회</button>
-            </div>
-          </div>
-          <div class="d-flex gap-2 align-items-center">
-            <!-- <button class="btn btn-sm" id="toastbtn" type="button">토스트</button> -->
-            <button class="btn btn-sm btn-outline-secondary" type="button" id="newPostOpenBtn"><i class="bi bi-plus-lg"></i> 새 글 작성</button>
-            <label class="text-muted">페이지당</label>
-            <select class="form-select form-select-sm" style="width: 90px" name="pageSize" id="pageSizeSelect">
-              <option value="15">15</option>
-              <option value="20">25</option>
-              <option value="50">50</option>
-            </select>
-          </div>
-        </section>
-        <section class="">
-          <div class="table-responsive">
-            <table class="table align-middle mb-0 board-table border">
-              <thead>
-                <tr>
-                  <th style="width: 50px" class="text-center">평점</th>
-                  <th style="width: 516px">책 제목</th>
-                  <th style="width: 160px">작가</th>
-                  <th style="width: 120px">작성자</th>
-                  <th style="width: 90px" class="text-center">작성일</th>
-                  <th style="width: 60px" class="text-center">멤버</th>
-                </tr>
-              </thead>
-              <tbody id="boardBody"></tbody>
-            </table>
-          </div>
-        </section>
-        <!--페이지 네비게이션-->
-        <section class="mt-3 d-flex justify-content-center">
-          <nav aria-label="페이지" id="page-navigation">
-            <ul class="pagination pagination-sm justify-content-center mb-0"></ul>
-          </nav>
-        </section>
-        <section>
-          <h1 class="bg-primary">bs-primary</h1>
-          <h1 class="bg-secondary">bs-secondary</h1>
-          <h1 class="bg-success">bs-success</h1>
-          <h1 class="bg-info">bs-info</h1>
-        </section>
-      </main>
-    </form>
-    <!-- 새 글 작성 모달, 새 글 모달 -->
-    <div class="modal fade" id="newPostModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content position-relative" id="newPostModalContent">
-          <div id="modalLoadingOverlay" class="modal-loading-overlay d-none">
-            <div class="spinner-border" role="status" aria-label="loading"></div>
-          </div>
-          <div class="modal-header">
-            <h5 class="modal-title">새 글 작성</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <form id="newPostForm" class="d-flex flex-column gap-3">
-              <div>
-                <label class="form-label fw-bold">책 제목</label>
-                <div class="input-group">
-                  <input type="text" class="form-control" id="newTitle" placeholder="데미안" required autocomplete="off" />
-                  <button type="button" class="btn btn-outline-secondary" id="openNaverSearchBtn">네이버 검색</button>
+                <div class="d-flex gap-2">
+                  <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>
+                  <button id="cancelBookBtn" type="button" class="btn btn-outline-secondary w-100">취소</button>
                 </div>
-              </div>
-              <div>
-                <label class="form-label fw-bold">저자</label>
-                <input type="text" class="form-control" id="newAuthor" placeholder="헤르만 헤세" required autocomplete="off" />
-              </div>
-              <div>
-                <label class="form-label fw-bold">대화 주제(선택)</label>
-                <input type="text" class="form-control" id="newQuestion" placeholder="ex) 데미안은 실존 인물일까요?" autocomplete="off" />
-              </div>
-              <div class="d-none">
-                <label class="form-label fw-bold">ISBN</label>
-                <input type="text" class="form-control" id="ISBN" autocomplete="off" />
-              </div>
-              <div class="d-flex flex-column align-items-start">
-                <label class="form-label d-none">표지</label>
-                <input type="hidden" id="newImageUrl" />
-                <img id="newImagePreview" class="img-fluid rounded d-none" alt="표지 미리보기" />
-              </div>
-              <div class="d-flex gap-2">
-                <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>
-                <button id="cancelBookBtn" type="button" class="btn btn-outline-secondary w-100">취소</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- isbn 없을 때 경고 모달 -->
-    <div class="modal fade" id="ISBNModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header bg-success p-2">
-            <h5 class="modal-title">경고</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body bg-primary">
-            <form id="ISBNForm" class="d-flex flex-column gap-3">
-              <div>
-                <div class="">
-                  <span>검색 기능을 사용해서 책을 등록하기를 권장하고 있습니다. 그래도 등록하시겠습니까?</span>
-                </div>
-              </div>
-              <div class="d-flex gap-2">
-                <button id="enrollBookBtn" type="submit" class="btn btn-dark w-100">등록</button>
-                <button id="cancelBookBtn" type="button" class="btn btn-outline-secondary w-100">취소</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- 네이버 책 검색 모달 -->
-    <div class="modal fade" id="naverSearchModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">네이버 책 검색</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="input-group mb-3">
-              <input id="naverQueryInput" class="form-control" placeholder="책 제목/저자 검색" />
-              <button id="naverSearchBtn" class="btn btn-outline-secondary" type="button">검색</button>
+              </form>
             </div>
-            <div id="naverResultList" class="row g-3"></div>
           </div>
         </div>
       </div>
-    </div>
+      <!-- 네이버 책 검색 모달 -->
+      <div class="modal fade" id="naverSearchModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">네이버 책 검색</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="input-group mb-3">
+                <input id="naverQueryInput" class="form-control" placeholder="책 제목/저자 검색" />
+                <button id="naverSearchBtn" class="btn btn-outline-secondary" type="button">검색</button>
+              </div>
+              <div id="naverResultList" class="row g-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-    <!-- 채팅 위젯 open 버튼 -->
-    <button type="button" class="btn btn-sm btn-outline-secondary chat-widget-container-open-btn d-none" id="chat-widget-container-open-btn">
-      <i class="bi bi-plus-lg"></i>
-    </button>
-    <!-- 메인 화면 채팅창 위젯 mainchatroom -->
-    <div class="card text-center chat-widget-container" id="chat-widget-container">
-      <div class="card-header d-flex justify-content-between bg-secondary">
-        <span id="chat-card-member-count"> 접속인원 </span>
-        <button class="btn btn-sm" id="chat-fold-btn" type="button"><i class="bi bi-dash-lg"></i></button>
+      <!-- 채팅 위젯 open 버튼 -->
+      <button type="button" class="btn btn-sm btn-outline-secondary chat-widget-container-open-btn d-none" id="chat-widget-container-open-btn">
+        <i class="bi bi-plus-lg"></i>
+      </button>
+      <!-- 메인 화면 채팅창 위젯 mainchatroom -->
+      <div class="card text-center chat-widget-container" id="chat-widget-container">
+        <div class="card-header d-flex justify-content-between bg-secondary">
+          <span id="chat-card-member-count"> 접속인원 </span>
+          <button class="btn btn-sm" id="chat-fold-btn" type="button"><i class="bi bi-dash-lg"></i></button>
+        </div>
+        <div class="card-body" id="messages"></div>
+        <div class="card-footer bg-secondary">
+          <form class="input-group input-group-sm w-100" id="chatForm">
+            <input
+              type="search"
+              class="form-control form-control-sm rounded-start"
+              name="chatInput"
+              id="chatInput"
+              placeholder="메시지 입력..."
+              autocomplete="off"
+            />
+            <button class="btn btn-sm btn-outline-secondary bg-success" type="submit" id="chatInputBtn">입력</button>
+          </form>
+        </div>
       </div>
-      <div class="card-body" id="messages"></div>
-      <div class="card-footer bg-secondary">
-        <form class="input-group input-group-sm w-100" id="chatForm">
-          <input
-            type="search"
-            class="form-control form-control-sm rounded-start"
-            name="chatInput"
-            id="chatInput"
-            placeholder="메시지 입력..."
-            autocomplete="off"
-          />
-          <button class="btn btn-sm btn-outline-secondary bg-success" type="submit" id="chatInputBtn">입력</button>
-        </form>
-      </div>
-    </div>
+    </main>
+    <footer class="footer bg-secondary text-center py-3">
+      <small>© 2025 BookChat</small>
+    </footer>
+
     <!-- Bootstrap JS Bundle with Popper -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"

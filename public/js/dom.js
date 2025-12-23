@@ -43,16 +43,6 @@ ratingInput?.addEventListener("input", syncRating); // 드래그 중
 ratingInput?.addEventListener("change", syncRating); // 드래그 완료
 syncRating(); // 초기값 표시
 
-// 토스트 테스트 버튼
-
-// const toastBtn = document.getElementById("toastbtn");
-
-// //토스트 테스트 버튼
-// toastBtn?.addEventListener("click", (e) => {
-//   e.preventDefault();
-//   badToastShow("토스트 테스트입니다.");
-// });
-
 let newPostModal;
 if (newPostModalEl && window.bootstrap) newPostModal = new window.bootstrap.Modal(newPostModalEl);
 // 모달 인스턴스
@@ -92,7 +82,7 @@ async function saveNewBook() {
 
   try {
     const res = await createBook(payload);
-    if (res.ok) {
+    if (res.data?.ok) {
       toastShow("책이 등록되었습니다.");
     }
   } catch (e) {

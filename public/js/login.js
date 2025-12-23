@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isUser) {
       await logout()
         .then(() => {
-          toastShow("성공적으로 로그아웃 되었습니다.");
+          // toastShow("성공적으로 로그아웃 되었습니다.");
           location.reload();
         })
         .catch((err) => {
@@ -426,57 +426,5 @@ async function initializeNotification() {
     }, delay);
   });
 }
-
-const testUserLoginBtn = document.getElementById("testUserLoginBtn");
-
-testUserLoginBtn?.addEventListener("click", async () => {
-  const email = "testuser@example.com";
-  const password = "testpassword";
-
-  try {
-    // 1) signup 먼저 시도
-    let userCredential;
-
-    try {
-      userCredential = await signupWithEmailPassword(email, password);
-    } catch (err) {
-      // 2) 이미 있으면 login으로 폴백
-      if (err?.code === "auth/email-already-in-use") {
-        userCredential = await loginWithEmailPassword(email, password);
-      } else {
-        throw err;
-      }
-    }
-
-    const user = userCredential.user; // firebase user
-
-    // 3) users 문서 upsert (없으면 생성, 있으면 업데이트)
-    const userRef = doc(db, "users", user.uid);
-
-    await setDoc(
-      userRef,
-      {
-        uid: user.uid,
-        email: user.email ?? email,
-        displayName: user.displayName ?? null,
-        photoURL: user.photoURL ?? null,
-        provider: user.providerData?.[0]?.providerId ?? "password",
-        autoSubscribe: true,
-        notificationSetting: true,
-
-        // Firestore 권장: Date 대신 서버 타임스탬프
-        updatedAt: serverTimestamp(),
-        // createdAt은 최초 생성 시에만 넣고 싶으면 아래처럼 merge + 필드전략 쓰면 됨(설명 아래)
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    toastShow("테스트 유저로 로그인 및 자동 회원정보 저장 완료!");
-  } catch (e) {
-    console.error(e);
-    toastShow(`로그인 실패: ${e?.message ?? "알 수 없는 오류"}`);
-  }
-});
 
 // 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대

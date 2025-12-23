@@ -28,26 +28,22 @@ export const firebaseConfig = {
 
 //인증정보
 export const app = initializeApp(firebaseConfig);
+const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+if (!isLocalhost) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider("6LeMgTQsAAAAAL7c3RdaDyMZBtGEzQ92QId8GFFN"),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
+
 export const auth = getAuth(app);
 export const functions = getFunctions(app, "asia-northeast3");
 
 export const rtdb = getDatabase(app);
 const googleProvider = new GoogleAuthProvider();
-const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 
 // 로컬에서만 에뮬레이터 사용
 export const db = isLocalhost ? getFirestore(app) : getFirestore(app, "bookchat-database");
-if (isLocalhost) {
-  connectFirestoreEmulator(db, "127.0.0.1", 8080); // Firestore 에뮬레이터 포트
-  connectDatabaseEmulator(rtdb, "127.0.0.1", 9000); // RTDB 에뮬레이터 포트 (쓸 거면)
-  connectAuthEmulator(auth, "http://127.0.0.1:9099");
-  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-} else {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider("RECAPTCHA_SITE_KEY"),
-    isTokenAutoRefreshEnabled: true,
-  });
-}
 export const registerUser = httpsCallable(functions, "registerUser");
 export const createBook = httpsCallable(functions, "createBook");
 export const createQuestion = httpsCallable(functions, "createQuestion");
@@ -57,7 +53,12 @@ export const createOrUpdateRating = httpsCallable(functions, "createOrUpdateRati
 export const subscribeToggleCall = httpsCallable(functions, "subscribeToggleCall");
 export const sendMainChatMessage = httpsCallable(functions, "sendMainChatMessage");
 export const sendMessage = httpsCallable(functions, "sendMessage");
-
+if (isLocalhost) {
+  connectFirestoreEmulator(db, "127.0.0.1", 8080); // Firestore 에뮬레이터 포트
+  connectDatabaseEmulator(rtdb, "127.0.0.1", 9000); // RTDB 에뮬레이터 포트 (쓸 거면)
+  connectAuthEmulator(auth, "http://127.0.0.1:9099");
+  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+}
 //래핑 함수
 export function onUser(cb) {
   return onAuthStateChanged(auth, cb);

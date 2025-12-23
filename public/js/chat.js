@@ -239,7 +239,6 @@ async function initializeSubscription() {
   const bookMembersRef = doc(db, "books", slug, "members", user.uid);
   const bookMembersDoc = await getDoc(bookMembersRef);
   let isVisisted = null;
-  console.log("bookMembersDoc.exists():", bookMembersDoc.exists());
   if (bookMembersDoc.exists()) {
     //books/{slug}/members 에 user.uid 가 있을 때 isVisisted = true
     if (bookMembersDoc.exists()) {
