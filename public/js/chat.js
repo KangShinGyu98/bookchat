@@ -217,17 +217,33 @@ async function subscribeToggleClient(nextUiState, prevState = "unsubscribe") {
     }
   }
 }
+let timeoutId = null;
 
 async function initializeSubscription() {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) {
     subscribeBtn.addEventListener("click", () => {
-      toastWarning("로그인이 필요한 서비스입니다.");
+      toastShow("로그인이 필요한 서비스입니다.");
+      showLoginModal();
     });
     autoSubscribeToggle.setAttribute("disabled", true);
     return;
   }
   // 토글 초기 상태 설정
+  subscribeBtn.addEventListener("click", () => {
+    const prevState = subscribeState;
+    subscribeState = subscribeState === "subscribe" ? "unsubscribe" : "subscribe";
+    renderSubscribeToggle(subscribeBtn, subscribeState);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(async () => {
+      timeoutId = null;
+      subscribeState = await subscribeToggleClient(subscribeState, prevState);
+      toastShow(subscribeState === "subscribe" ? "구독되었습니다." : "구독이 취소되었습니다.");
+      renderSubscribeToggle(subscribeBtn, subscribeState);
+    }, 500);
+  });
 
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const userData = userDoc.exists() ? userDoc.data() : null;
@@ -261,22 +277,6 @@ async function initializeSubscription() {
   }
   renderSubscribeToggle(subscribeBtn, subscribeState);
 }
-
-let timeoutId = null;
-subscribeBtn.addEventListener("click", () => {
-  const prevState = subscribeState;
-  subscribeState = subscribeState === "subscribe" ? "unsubscribe" : "subscribe";
-  renderSubscribeToggle(subscribeBtn, subscribeState);
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-  }
-  timeoutId = setTimeout(async () => {
-    timeoutId = null;
-    subscribeState = await subscribeToggleClient(subscribeState, prevState);
-    toastShow(subscribeState === "subscribe" ? "구독되었습니다." : "구독이 취소되었습니다.");
-    renderSubscribeToggle(subscribeBtn, subscribeState);
-  }, 500);
-});
 
 // 버튼에 이벤트 추가 : 구독 버튼 누르면 users subscribedBooks 에 book slug 추가 구독버튼 d-none 구독취소 버튼 보이기, 구독 취소 버튼 누르면 반대
 
@@ -603,7 +603,7 @@ autoSubscribeToggle?.addEventListener("change", () => {
   autoSubscribeTimeoutId = setTimeout(async () => {
     try {
       await updateDoc(doc(db, "users", user.uid), {
-        autoSubscribe : autoSubscribe,
+        autoSubscribe: autoSubscribe,
       });
       toastShow(`자동 구독 설정이 ${autoSubscribe ? "활성화" : "비활성화"}되었습니다.`);
     } catch (e) {
