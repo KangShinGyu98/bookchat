@@ -97,19 +97,19 @@ async function saveNewBook() {
     }
   } catch (e) {
     switch (e?.code) {
-      case "unauthenticated":
+      case "functions/unauthenticated":
         toastShow("로그인이 필요합니다.");
         break;
-      case "permission-denied":
+      case "functions/permission-denied":
         toastShow("책을 등록하기 위해서는 로그인이 필요합니다.");
         break;
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(e?.message ?? "입력값이 올바르지 않습니다.");
         break;
-      case "failed-precondition":
+      case "functions/failed-precondition":
         toastShow(e?.message ?? "닉네임을 설정해야합니다.");
         break;
-      case "already-exists":
+      case "functions/already-exists":
         toastShow(e?.message ?? "이미 등록된 책입니다.");
         break;
       default:
@@ -190,11 +190,11 @@ const runNaverSearch = async (keyword) => {
 
     // callable 에러는 err.code / err.message가 있음
     switch (err?.code) {
-      case "unauthenticated":
-      case "permission-denied":
+      case "functions/unauthenticated":
+      case "functions/permission-denied":
         toastShow("로그인이 필요합니다.");
         break;
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(err?.message ?? "검색어가 올바르지 않습니다.");
         break;
       default:

@@ -2,93 +2,72 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   	match /nicknames/{normalizedNickname} {
-    	  allow read: if true;
-
-        // 신규 생성만 허용
-        allow create: if request.auth != null
-                      && request.auth.token.firebase.sign_in_provider != "anonymous"
-                      && !exists(/databases/$(database)/documents/nicknames/$(normalizedNickname))
-                      && request.resource.data.uid == request.auth.uid;
-
-        // 수정, 삭제 전부 차단
-        allow update, delete: if false;
+        allow get: if true;
+        allow list: if false;
+        allow create, update, delete: if false;
     }
     match /users/{uid} {
-      allow read: if request.auth != null
-                  && request.auth.uid == uid;
+      allow read: if request.auth != null && request.auth.uid == uid;
+			allow create: if false;
+			allow update: if request.auth != null
+                && request.auth.uid == uid
+                && request.resource.data.diff(resource.data)
+                     .changedKeys().hasOnly(['autoSubscribe', 'notification'])
+                && ( !request.resource.data.diff(resource.data).changedKeys().hasAny(['autoSubscribe'])
+                     || request.resource.data.autoSubscribe is bool )
+                && ( !request.resource.data.diff(resource.data).changedKeys().hasAny(['notification'])
+                     || request.resource.data.notification is bool );
+    	allow delete: if false;
 
-      allow write: if request.auth != null
-                   && request.auth.token.firebase.sign_in_provider != "anonymous"
-                   && request.auth.uid == uid;
       match /notifications/{notificationId} {
         allow read: if request.auth != null
                     && request.auth.uid == uid;
-
-        allow write: if request.auth != null
-                     && request.auth.token.firebase.sign_in_provider != "anonymous"
-                     && request.auth.uid == uid;
+        allow create: if false;
+        allow update: if request.auth != null
+                  && request.auth.uid == uid
+                  && request.resource.data.diff(resource.data)
+                      .changedKeys().hasOnly(['read'])
+                  && request.resource.data.read is bool;
+    	allow delete: if false;
       }
     }
 		match /chatrooms/{chatroomId}{
     	allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false;
       match /messages/{msgId}{
       	allow read: if true;
-      	allow write: if request.auth != null;
+      	allow write: if false;
       }
     }
     match /books/{bookId} {
       allow read: if true;
-      allow write: if request.auth != null
-                    && request.auth.token.firebase.sign_in_provider != "anonymous";
+      allow write: if false;
 
       match /messages/{msgId} {
         allow read: if true;
-        allow create: if request.auth != null
-        							&& request.auth.token.firebase.sign_in_provider != "anonymous"
-        						  && request.resource.data.keys().hasOnly(['text', 'senderUid', 'senderName', 'createdAt'])
-                      && request.resource.data.text is string
-                      && request.resource.data.text.size() > 0
-                      && request.resource.data.text.size() <= 2000
-                      && request.resource.data.senderUid == request.auth.uid
-                      && request.resource.data.senderName.size() <= 100
-                      && request.resource.data.senderName is string;
-        allow update: if false;
-        allow delete: if false;
+        allow write: if false;
       }
       match /ratings/{ratingId} {
-      	allow read : if true;
+      	allow read: if request.auth != null && request.auth.uid == resource.data.createdByUid;
         allow write : if false;
       }
 
       match /questions/{questionId} {
+      //uid필드는 가려야하나
         allow read: if true;
-        allow create: if request.auth != null
-                      && request.auth.token.firebase.sign_in_provider != "anonymous"
-                      && request.resource.data.keys().hasOnly(['question', 'createdBy', 'createdAt', 'createdByUid'])
-                      && request.resource.data.question is string
-                      && request.resource.data.question.size() > 0
-                      && request.resource.data.createdBy is string
-                      && request.resource.data.createdAt is timestamp
-                      && request.resource.data.createdByUid is string;
-        allow update: if false;
-        allow delete: if request.auth != null
-                   && request.auth.token.firebase.sign_in_provider != "anonymous"
-                   && request.auth.uid == resource.data.createdByUid;
+        allow create,update : if false;
+        allow delete : if request.auth != null && request.auth.uid == resource.data.createdByUid; 
       }
 
       match /members/{memberId} {
-        allow read: if true;
-        allow create: if request.auth != null
-                      && request.auth.token.firebase.sign_in_provider != "anonymous"
-                      && request.auth.uid == memberId;
-        allow update: if request.auth != null
-                      && request.auth.token.firebase.sign_in_provider != "anonymous"
-                      && request.auth.uid == memberId;
-        allow delete: if request.auth != null
-                      && request.auth.token.firebase.sign_in_provider != "anonymous"
-                      && request.auth.uid == memberId;
+        allow get: if request.auth != null && request.auth.uid == memberId;
+        allow list: if false;
+        allow create, update, delete: if false;
+
       }
+    }
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

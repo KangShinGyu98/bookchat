@@ -158,10 +158,10 @@ form.addEventListener("submit", async (e) => {
     console.error("메시지 전송 실패:", err);
 
     switch (err?.code) {
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(err?.message ?? "메시지 입력값이 올바르지 않습니다.");
         break;
-      case "resource-exhausted":
+      case "functions/resource-exhausted":
         toastShow("메시지를 너무 빠르게 보냈습니다. 잠시 후 다시 시도하세요.");
         break;
       default:

@@ -118,7 +118,6 @@ exports.callNaverBooksApi = onCall(
     }
   }
 );
-
 exports.createBook = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
   const { data, auth } = request;
 
@@ -209,7 +208,6 @@ exports.createBook = onCall({ region: "asia-northeast3", enforceAppCheck: proces
     throw new HttpsError("internal", "createBook failed");
   }
 });
-
 exports.createQuestion = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async ({ data, auth }) => {
   if (!auth) {
     throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
@@ -238,13 +236,13 @@ exports.createQuestion = onCall({ region: "asia-northeast3", enforceAppCheck: pr
 
   const normalizedText = String(text).trim();
   const questionsRef = db.collection("books").doc(bookId).collection("questions");
-
+  const myQuestionRef = questionsRef.where("createdByUid", "==", uid).limit(3);
   try {
     await db.runTransaction(async (tx) => {
-      const snap = await tx.get(questionsRef.limit(3));
-
+      const snap = await tx.get(questionsRef);
+      const mySnap = await tx.get(myQuestionRef);
       // 412: 사전조건 실패 (최대 개수 초과)
-      if (snap.size >= 3) {
+      if (mySnap.size >= 3) {
         throw new HttpsError("failed-precondition", "질문은 최대 3개까지만 허용됩니다.");
       }
 
@@ -272,7 +270,6 @@ exports.createQuestion = onCall({ region: "asia-northeast3", enforceAppCheck: pr
     throw new HttpsError("internal", "transaction failed");
   }
 });
-
 exports.onMessage = onDocumentCreated(
   {
     document: "books/{bookId}/messages/{msgId}",
@@ -354,17 +351,14 @@ exports.onMessage = onDocumentCreated(
     await Promise.all(writePromises);
   }
 );
-
 // 트리거 사용하지 않는  이유는 linkwith popup 과 같은 경우 때문
 exports.registerUser = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
   const { data, auth } = request;
   if (!auth) {
-    console.log("Unauthenticated request to registerUser");
     throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
   }
   const provider = auth.token?.firebase?.sign_in_provider;
   if (provider === "anonymous") {
-    console.log("Anonymous user cannot registerUser");
     throw new HttpsError("permission-denied", "로그인이 필요합니다.");
   }
 
@@ -391,10 +385,8 @@ exports.registerUser = onCall({ region: "asia-northeast3", enforceAppCheck: proc
       });
     }
   });
-  console.log("User registration transaction completed for uid:", uid);
   return { ok: true };
 });
-
 exports.createOrUpdateRating = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
   const { data, auth } = request;
 
@@ -486,13 +478,11 @@ exports.createOrUpdateRating = onCall({ region: "asia-northeast3", enforceAppChe
     throw new HttpsError("internal", "createOrUpdateRating failed");
   }
 });
-
 function normalizeNickname(raw) {
   return String(raw || "")
     .trim()
     .toLowerCase();
 }
-
 exports.setNickname = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
   const { data, auth } = request;
   const now = Timestamp.now();
@@ -660,7 +650,6 @@ exports.subscribeToggleCall = onCall({ region: "asia-northeast3", enforceAppChec
     throw new HttpsError("internal", "subscribeToggleCall failed");
   }
 });
-
 exports.sendMessage = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
   const { data, auth } = request;
 
@@ -712,7 +701,6 @@ exports.sendMessage = onCall({ region: "asia-northeast3", enforceAppCheck: proce
     throw new HttpsError("internal", "sendMessage failed");
   }
 });
-
 exports.sendMainChatMessage = onCall({ region: "asia-northeast3", enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }, async (request) => {
   const { data, auth } = request;
 

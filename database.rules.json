@@ -5,14 +5,52 @@
       "presence": {
         "users": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".read": true,
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "
+              newData.hasChildren(['nickname','isAnonymous','joinedAt']) &&
+
+              newData.child('nickname').isString() &&
+              newData.child('nickname').val().length <= 50 &&
+
+              newData.child('isAnonymous').isBoolean() &&
+
+              (
+                newData.child('joinedAt').isNumber() ||
+                newData.child('joinedAt').child('.sv').val() === 'timestamp'
+              ) &&
+              (
+                !newData.hasChild('photoURL') ||
+                newData.child('photoURL').isString() ||
+                newData.child('photoURL').val() === null
+              ) &&
+              newData.getPriority() === newData.getPriority()
+            "
           }
         }
       }
     },
+
     "presence": {
-      ".read": true,
-      ".write": true
+      "$bookId": {
+        "users": {
+          ".read": true,
+          "$uid": {
+            ".read": true,
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "
+              newData.hasChildren(['state','isAnonymous','joinedAt']) &&
+              newData.child('state').isString() &&
+              (newData.child('state').val() === 'online' || newData.child('state').val() === 'offline') &&
+              newData.child('isAnonymous').isBoolean() &&
+              (
+                newData.child('joinedAt').isNumber() ||
+                newData.child('joinedAt').child('.sv').val() === 'timestamp'
+              )
+            "
+          }
+        }
+      }
     }
   }
 }

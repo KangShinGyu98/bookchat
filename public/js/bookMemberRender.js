@@ -39,14 +39,12 @@ export function joinRoom(user) {
 export function listenRoomMembers(bookId, callback) {
   const membersRef = ref(rtdb, `presence/${bookId}/users`);
   const bookRef = doc(db, "books", bookId);
-
   // 최신값 캐시(둘 중 하나가 먼저 와도 합쳐서 callback)
   let latestMembers = [];
   let latestOnlineCount = 0;
 
   let latestMembersCount = 0; // books/{bookId}.membersCount
   let latestSubscribedMembers = 0; // books/{bookId}.subscribedMembers
-
   const emit = () => {
     callback({
       members: latestMembers,
@@ -62,7 +60,6 @@ export function listenRoomMembers(bookId, callback) {
       uid,
       ...data,
     }));
-
     latestOnlineCount = latestMembers.filter((m) => m.isAnonymous === false).length;
     emit();
   };

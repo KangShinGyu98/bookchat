@@ -16,6 +16,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  limit,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { auth, createOrUpdateRating, createQuestion, db, onUser, subscribeToggleCall, sendMessage } from "./app.js";
 import { showLoginModal } from "./login.js";
@@ -23,7 +24,7 @@ import { toastShow, toastWarning } from "./myToast.js";
 
 const params = new URLSearchParams(location.search);
 const slug = params.get("book");
-if (!slug) {
+if (!slug || slug.trim() === "" || slug.includes("/")) {
   alert("정상적인 접근이 아닙니다.");
   location.href = "index.html";
 }
@@ -54,6 +55,9 @@ function setModalLoading(isLoading) {
 }
 let newQuestionModal;
 if (newQuestionModalEl && window.bootstrap) newQuestionModal = new window.bootstrap.Modal(newQuestionModalEl);
+newQuestionModalEl.addEventListener("hide.bs.modal", function (event) {
+  loadQuestions();
+});
 
 newRatingOpenBtn?.addEventListener("show.bs.dropdown", (e) => {
   const isUser = auth.currentUser && !auth.currentUser.isAnonymous;
@@ -69,6 +73,23 @@ const syncRating = () => {
   if (!ratingInput || !ratingValueDisplay) return;
   ratingValueDisplay.textContent = ratingInput.value;
 };
+async function initializeRating() {
+  // ratings 문서에서 자기거 가져와서 초기화
+  if (!ratingInput) return;
+  if (!auth.currentUser || auth.currentUser.isAnonymous) return;
+  const user = auth.currentUser;
+  const ratingsRef = collection(db, "books", slug, "ratings");
+  //limit 1 으로 변경
+
+  const q = query(ratingsRef, where("createdByUid", "==", user.uid), limit(1));
+  const ratingsSnap = await getDocs(q);
+  if (!ratingsSnap.empty) {
+    const ratingDoc = ratingsSnap.docs[0];
+    const ratingData = ratingDoc.data();
+    ratingInput.value = ratingData.rating.toString();
+    syncRating();
+  }
+}
 async function syncRatingChange() {
   if (!ratingInput) return;
   if (!auth.currentUser || auth.currentUser.isAnonymous) return toastShow("로그인이 필요한 서비스입니다.");
@@ -101,17 +122,17 @@ async function syncRatingChange() {
     toastShow("평점 등록에 실패했습니다.");
   } catch (e) {
     switch (e?.code) {
-      case "unauthenticated":
-      case "permission-denied":
+      case "functions/unauthenticated":
+      case "functions/permission-denied":
         toastShow("로그인이 필요합니다.");
         break;
-      case "failed-precondition":
+      case "functions/failed-precondition":
         toastShow(e?.message ?? "별명 설정이 필요합니다.");
         break;
-      case "not-found":
+      case "functions/not-found":
         toastShow(e?.message ?? "책을 찾을 수 없습니다.");
         break;
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(e?.message ?? "올바른 평점을 입력해주세요.");
         break;
       default:
@@ -121,8 +142,6 @@ async function syncRatingChange() {
 }
 ratingInput?.addEventListener("input", syncRating); // 드래그 중
 ratingInput?.addEventListener("pointerup", syncRatingChange); // 드래그 완료
-
-syncRating(); // 초기값 표시
 
 msgInput.addEventListener("input", () => {
   msgInput.style.height = "auto"; // 높이 초기화
@@ -183,14 +202,14 @@ async function subscribeToggleClient(nextUiState, prevState = "unsubscribe") {
     if (subscribeBtn) renderSubscribeToggle(subscribeBtn, prevState);
 
     switch (e?.code) {
-      case "unauthenticated":
-      case "permission-denied":
+      case "functions/unauthenticated":
+      case "functions/permission-denied":
         toastShow("로그인이 필요합니다.");
         break;
-      case "not-found":
+      case "functions/not-found":
         toastShow(e?.message ?? "요청 대상을 찾을 수 없습니다.");
         break;
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(e?.message ?? "요청 값이 올바르지 않습니다.");
         break;
       default:
@@ -220,6 +239,7 @@ async function initializeSubscription() {
   const bookMembersRef = doc(db, "books", slug, "members", user.uid);
   const bookMembersDoc = await getDoc(bookMembersRef);
   let isVisisted = null;
+  console.log("bookMembersDoc.exists():", bookMembersDoc.exists());
   if (bookMembersDoc.exists()) {
     //books/{slug}/members 에 user.uid 가 있을 때 isVisisted = true
     if (bookMembersDoc.exists()) {
@@ -231,16 +251,12 @@ async function initializeSubscription() {
 
   if (isVisisted) {
     subscribeState = previousSubscribe ? "subscribe" : "unsubscribe";
-    await updateDoc(bookMembersRef, {
-      lastAccessAt: serverTimestamp(),
-    });
     subscribeState = await subscribeToggleClient(subscribeState, prevState);
   } else {
     if (autoSubscribe) {
       //처음 들어왔으니까 실패시에는 unsub 로 들어가야지
       prevState = "unsubscribe";
       subscribeState = "subscribe";
-      console.log("autosubscribe true -> subscribe");
       subscribeState = await subscribeToggleClient(subscribeState, prevState);
     }
   }
@@ -349,14 +365,14 @@ form.addEventListener("submit", async (e) => {
     console.error("메시지 전송 실패:", err);
 
     switch (err?.code) {
-      case "unauthenticated":
-      case "permission-denied":
+      case "functions/unauthenticated":
+      case "functions/permission-denied":
         toastShow("로그인이 필요합니다.");
         break;
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(err?.message ?? "메시지 입력값이 올바르지 않습니다.");
         break;
-      case "resource-exhausted":
+      case "functions/resource-exhausted":
         toastShow("메시지를 너무 빠르게 보냈습니다. 잠시 후 다시 시도하세요.");
         break;
       default:
@@ -371,7 +387,9 @@ form.addEventListener("submit", async (e) => {
 // ===== 질문 캐루셀 =====
 async function loadQuestions() {
   try {
+    //
     const snap = await getDocs(collection(db, "books", slug, "questions"));
+    carouselInner.replaceChildren(); // 초기화
     renderQuestionCard(snap);
   } catch (error) {
     console.error("질문 로드 실패:", error);
@@ -393,16 +411,19 @@ function renderQuestionCard(snap) {
   } else {
     snap.docs.forEach((docSnap, index) => {
       const q = docSnap.data();
-      const isActive = index === 0 ? "active" : "";
       const questionDiv = document.createElement("div");
-      questionDiv.className = `carousel-item ${isActive}`;
-      questionDiv.innerHTML = `
-        <div class="question-item">
-          <div class="question-text">
-            "${q.text || ""}"
-          </div>
-        </div>
-      `;
+      questionDiv.className = `carousel-item${index === 0 ? " active" : ""}`;
+
+      const item = document.createElement("div");
+      item.className = "question-item";
+
+      const text = document.createElement("div");
+      text.className = "question-text";
+      // ✅ 사용자 입력은 textContent
+      text.textContent = `"${q.text ?? ""}"`;
+
+      item.appendChild(text);
+      questionDiv.appendChild(item);
       carouselInner.appendChild(questionDiv);
     });
   }
@@ -467,20 +488,20 @@ newQuestionForm?.addEventListener("submit", async (e) => {
     await createQuestion(payload);
     toastShow("질문이 등록되었습니다.");
   } catch (e) {
-    switch (e.code) {
-      case "unauthenticated":
+    switch (e?.code) {
+      case "functions/unauthenticated":
         toastShow("로그인이 필요합니다.");
         break;
-      case "permission-denied":
+      case "functions/permission-denied":
         toastShow("익명 사용자는 질문을 등록할 수 없습니다.");
         break;
-      case "invalid-argument":
+      case "functions/invalid-argument":
         toastShow(e.message ?? "입력값이 올바르지 않습니다.");
         break;
-      case "failed-precondition":
+      case "functions/failed-precondition":
         toastShow(e.message ?? "질문은 최대 3개까지만 가능합니다.");
         break;
-      case "already-exists":
+      case "functions/already-exists":
         toastShow(e.message ?? "이미 같은 질문이 있습니다.");
         break;
       default:
@@ -490,7 +511,6 @@ newQuestionForm?.addEventListener("submit", async (e) => {
     setModalLoading(false);
   }
 
-  toastShow("등록 완료!");
   newQuestionForm.reset();
   newQuestionModal?.hide();
   // 미리보기 초기화가 필요하면 여기서 추가
@@ -498,50 +518,64 @@ newQuestionForm?.addEventListener("submit", async (e) => {
 const questionSpinnerContainer = document.getElementById("question-spinner-container");
 const questionsContainer = document.getElementById("questions-container");
 async function renderNewQuestionModal(bookId) {
-  // /books/{bookId}/questions 에서 questions 받아와서 렌더링 및 클릭 이벤트 처리
   questionsCollection = [];
-  questionsContainer.innerHTML = "";
-  if (questionSpinnerContainer) questionSpinnerContainer.classList.remove("d-none");
+  questionsContainer.replaceChildren();
 
-  const questionsColRef = collection(db, "books", bookId, "questions");
-  const q = query(
-    questionsColRef,
-    orderBy("createdAt", "asc") // 오래된 순
-  );
+  if (questionSpinnerContainer) {
+    questionSpinnerContainer.classList.remove("d-none");
+  }
+
+  // 자기 질문만 불러오기
+  const questionsRef = collection(db, "books", bookId, "questions");
+  const q = query(questionsRef, where("createdByUid", "==", auth.currentUser.uid), orderBy("createdAt", "desc"));
   const questionsSnap = await getDocs(q);
 
-  questionsSnap.docs.forEach((doc) => {
+  questionsSnap.docs.forEach((snap) => {
     questionsCollection.push({
-      id: doc.id,
-      ...doc.data(),
+      id: snap.id,
+      ...snap.data(),
     });
   });
 
   questionsCollection.forEach((question) => {
     const questionDiv = document.createElement("div");
     questionDiv.className = "bg-primary rounded d-flex justify-content-between align-items-center p-2 mb-2";
-    questionDiv.innerHTML = `
-      <p class="p-0 m-0">${question.question || ""}</p>
-      <button type="button" class="btn-close text-sm" data-question-id="${question.id}"></button>
-    `;
-    questionsContainer.appendChild(questionDiv);
-    // 삭제 버튼 이벤트 리스너 추가
-    const deleteBtn = questionDiv.querySelector(".btn-close");
-    deleteBtn.addEventListener("click", async () => {
-      const questionId = deleteBtn.getAttribute("data-question-id");
-      if (questionId) {
-        // 질문 삭제
-        // 해당하는 div 및 questionsCollection 에서도 제거
-        questionsContainer.removeChild(questionDiv);
-        questionsCollection = questionsCollection.filter((q) => q.id !== questionId);
 
-        await deleteDoc(doc(db, "books", bookId, "questions", questionId));
-        toastShow("질문이 삭제되었습니다.");
-        renderNewQuestionModal(bookId); // 모달 다시 렌더링
-      }
+    // --- 질문 텍스트 ---
+    const p = document.createElement("p");
+    p.className = "p-0 m-0";
+    p.textContent = question.text ?? ""; // ✅ textContent 사용
+
+    // --- 삭제 버튼 ---
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "btn-close text-sm";
+    deleteBtn.dataset.questionId = question.id;
+
+    deleteBtn.addEventListener("click", async () => {
+      const questionId = deleteBtn.dataset.questionId;
+      if (!questionId) return;
+
+      // UI 먼저 제거
+      questionDiv.remove();
+      questionsCollection = questionsCollection.filter((q) => q.id !== questionId);
+
+      // Firestore 삭제
+      await deleteDoc(doc(db, "books", bookId, "questions", questionId));
+      toastShow("질문이 삭제되었습니다.");
+
+      // 필요하다면 다시 렌더링
+      renderNewQuestionModal(bookId);
     });
+
+    questionDiv.appendChild(p);
+    questionDiv.appendChild(deleteBtn);
+    questionsContainer.appendChild(questionDiv);
   });
-  if (questionSpinnerContainer) questionSpinnerContainer.classList.add("d-none");
+
+  if (questionSpinnerContainer) {
+    questionSpinnerContainer.classList.add("d-none");
+  }
 }
 
 cancelQuestionBtn?.addEventListener("click", () => {
@@ -570,7 +604,7 @@ autoSubscribeToggle?.addEventListener("change", () => {
   autoSubscribeTimeoutId = setTimeout(async () => {
     try {
       await updateDoc(doc(db, "users", user.uid), {
-        autoSubscribe,
+        autoSubscribe : autoSubscribe,
       });
       toastShow(`자동 구독 설정이 ${autoSubscribe ? "활성화" : "비활성화"}되었습니다.`);
     } catch (e) {
@@ -581,8 +615,12 @@ autoSubscribeToggle?.addEventListener("change", () => {
   }, 500);
 });
 
-loadBook();
-subscribeMessages();
-onUser(() => initializeSubscription());
-onUser(() => loadQuestions());
-onUser(() => readNotifications(slug));
+onUser(() => {
+  loadBook();
+  subscribeMessages();
+  initializeSubscription();
+  loadQuestions();
+  readNotifications(slug);
+  initializeRating();
+});
+// 초기값 표시

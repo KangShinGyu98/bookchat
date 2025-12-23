@@ -165,16 +165,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       // callable 에러는 보통 err.code / err.message 로 옴
       switch (err?.code) {
-        case "unauthenticated":
+        case "functions/unauthenticated":
           toastShow("로그인이 필요합니다.");
           break;
-        case "permission-denied":
+        case "functions/permission-denied":
           toastShow("닉네임 설정을 위해서는 로그인이 필요합니다.");
           break;
-        case "invalid-argument":
+        case "functions/invalid-argument":
           toastShow(err?.message ?? "입력값이 올바르지 않습니다.");
           break;
-        case "already-exists":
+        case "functions/already-exists":
           toastShow("이미 사용 중인 별명입니다.");
           break;
         default:
