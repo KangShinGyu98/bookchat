@@ -355,14 +355,13 @@ form.addEventListener("submit", async (e) => {
   };
   try {
     // callable로 메시지 전송
+    input.value = "";
     const res = await sendMessage(payload);
 
-    if (res?.data?.ok) {
-      input.value = "";
-    }
+    // if (res?.data?.ok) {
+    //   input.value = "";
+    // }
   } catch (err) {
-    console.error("메시지 전송 실패:", err);
-
     switch (err?.code) {
       case "functions/unauthenticated":
       case "functions/permission-denied":
@@ -377,6 +376,7 @@ form.addEventListener("submit", async (e) => {
       default:
         toastShow("서버 오류가 발생했습니다.");
     }
+    input.value = text; // 실패 시 입력 복원
   }
 
   msgInput.style.height = "auto";

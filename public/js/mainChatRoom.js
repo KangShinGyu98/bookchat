@@ -149,14 +149,13 @@ form.addEventListener("submit", async (e) => {
 
   try {
     // callable로 메시지 전송
+    input.value = "";
     const res = await sendMainChatMessage({ text });
 
-    if (res?.data?.ok) {
-      input.value = "";
-    }
+    // if (res?.data?.ok) {
+    //   input.value = "";
+    // }
   } catch (err) {
-    console.error("메시지 전송 실패:", err);
-
     switch (err?.code) {
       case "functions/invalid-argument":
         toastShow(err?.message ?? "메시지 입력값이 올바르지 않습니다.");
@@ -167,6 +166,7 @@ form.addEventListener("submit", async (e) => {
       default:
         toastShow("서버 오류가 발생했습니다.");
     }
+    input.value = text; // 실패 시 입력 복원
   }
 });
 
